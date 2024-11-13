@@ -9,26 +9,17 @@
 #include <math.h>
 
 float GenRanNum(int seedIncrementer, int secMin, int secMax) { //Génére un temps aléatoire compris entre secMin et secMan secondes.
-	srand(time(NULL) + seedIncrementer);
 	/*Se base sur le temps système pour générer une seed qui fournit une séquence de nombres aléatoires.
 	seedIncrementer incrémente le srand pour éviter que la fonction aléatoire sorte systématiquement la même chose. */
-
-	//printf("%lu", time(NULL) + seedIncrementer);
-
+	srand(time(NULL) + seedIncrementer);
 	float randomTime = ((rand() % (((secMax - secMin)*1000) + 1) ) + (secMin*1000)) / 1000.0; //Donner un temps compris entre 25 et 45 secondes pour un secteur.
-
-	//printf("Temps généré par la fonction GenRanNum: %.3f\n", randomTime);
-
 	return randomTime;
 }
-
-
-
 
 int doingLap(int *graine, float *tempsSec1, float *tempsSec2, float *tempsSec3, float *tempsTotal) { //Appelée par une voiture → Lance une simulation d'un tour, il peut aboutir en temps, en un crash ou en pit.
 	float bestTime = INFINITY;
 	int seed = *graine;
-	int diceResult = GenRanNum(seed++,1,100);
+	int diceResult = GenRanNum(seed++,1,101);
 	printf("Valeur générée par le dé servant à déterminer l'aboutissement du tour: %d.\n", diceResult);
 
 	// Traitement de la chance que le pilote se plante.
@@ -85,9 +76,6 @@ int doingLap(int *graine, float *tempsSec1, float *tempsSec2, float *tempsSec3, 
 
 
 int Essais() {
-	// Initialise les différentes voitures.
-	// Truc qui sort les meilleur temps de voiture à la fin des essais.
-
 	// Variables qui contiendront les meilleurs temps.
 	float bestTimeSec1 = INFINITY;
 	float bestTimeSec2 = INFINITY;
@@ -96,7 +84,7 @@ int Essais() {
 	
 	// Variables qui seront mises à jour par doingLap() à chaque fois qu'une voiture effectue un tour.
 	float tempsSec1, tempsSec2, tempsSec3, tempsTotal;
-	int seed=0;
+	int seed = 0;
 	
 	
 	int seed4GenRanTime = 0; // Utilisée comme graine par GenRanNum() et incrémentée à chaque utilisation.
@@ -105,19 +93,25 @@ int Essais() {
 		trialsDuration = GenRanNum(seed4GenRanTime++, 0, 40); // De combien de temps ? REVENIR DESSUS
 	}
 	
-	while (trialsDuration < 3600) {
-		doingLap(&seed	, &tempsSec1, &tempsSec2, &tempsSec3, &tempsTotal);
-		printf("Valeurs des meilleurs temps: %.3f, %.3f, %.3f, %.3f.\n", bestTimeSec1, bestTimeSec2, bestTimeSec3, bestTimeTot);
-		printf("Temps effectués par la voiture: %.3f, %.3f, %.3f, %.3f. duree essais %.3f \n", tempsSec1, tempsSec2, tempsSec3, tempsTotal, trialsDuration);
-		trialsDuration += tempsTotal;	
-		if (tempsSec1 < bestTimeSec1){
-			bestTimeSec1 = tempsSec1;}
-		if (tempsSec2 < bestTimeSec2){
-			bestTimeSec2 = tempsSec2;}
-		if (tempsSec3 < bestTimeSec3){
-			bestTimeSec3 = tempsSec3;}
+	while ( trialsDuration < 3600 ) { // Boucle tournant tant que les essais n'ont pas atteint 60 minutes.
+		doingLap(&seed, &tempsSec1, &tempsSec2, &tempsSec3, &tempsTotal); // Lancement d'un tour de voiture.
+		printf("Valeurs des meilleurs temps: %.3f, %.3f, %.3f, %.3f.\n", bestTimeSec1, bestTimeSec2, bestTimeSec3, bestTimeTot); // Pas beau, faut faire un meilleur affichage.
+		printf("Temps effectués par la voiture: %.3f, %.3f, %.3f, %.3f. duree essais %.3f \n", tempsSec1, tempsSec2, tempsSec3, tempsTotal, trialsDuration); // Idem.
+		trialsDuration += tempsTotal; // Ajout du temps total effectué par la voiture sur son tour au temps des essais.
+		
+		// Mise à jour des meilleurs temps.
+		if (tempsSec1 < bestTimeSec1) {
+			bestTimeSec1 = tempsSec1;
+		}
+		if (tempsSec2 < bestTimeSec2) {
+			bestTimeSec2 = tempsSec2;
+		}
+		if (tempsSec3 < bestTimeSec3) {
+			bestTimeSec3 = tempsSec3;
+		}
 		if (tempsTotal < bestTimeTot) {
-			bestTimeTot=tempsTotal;}
+			bestTimeTot = tempsTotal;
+		}
 	}
 }
 
@@ -127,16 +121,4 @@ int main() {
 	// printf("--------|----------|----------|----------|---------\n");
 	// printf("--------|bestTimeSec1|bestTimeSec2|bestTimeSec3|bestTimeTot\n");
 	Essais();
-	
-
 }
-/* Idées :
-	Un processus par voiture.
-	Chaque process appelle GenRanNum trois fois → Génère trois temps par secteur.
-
-	Valeurs pour l'état de la voiture :
-	-1 → La voiture est crashée ;
-	0 → La voiture est au stand ;
-	1 → La voiture roule.
-
-*/

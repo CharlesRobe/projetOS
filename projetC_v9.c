@@ -8,7 +8,7 @@
 #include <time.h>
 #include <unistd.h>
 
-// Mettre à 1 pour activer les print de debug.
+// Mettre à 1 pour activer les printf() de debug.
 int debugPrints = 0;
 
 
@@ -32,7 +32,7 @@ float GenRanNum(int seedIncrementer, int secMin, int secMax) { //Génére un tem
 	return randomTime;
 }
 
-int doingLap(int *graine, float *tempsSec1, float *tempsSec2, float *tempsSec3, float *tempsTotal) { //Appelée par une voiture → Lance une simulation d'un tour, il peut aboutir en temps, en un crash ou en pit.
+int doingLap(int *graine, float *tempsSec1, float *tempsSec2, float *tempsSec3, float *tempsTotal, float *trialsDuration) { //Appelée par une voiture → Lance une simulation d'un tour, il peut aboutir en temps, en un crash ou en pit.
 	float bestTime = INFINITY;
 	int seed = *graine;
 	int diceResult = GenRanNum(seed++,1,101);
@@ -69,7 +69,9 @@ int doingLap(int *graine, float *tempsSec1, float *tempsSec2, float *tempsSec3, 
 		if (debugPrints == 1) { printf("Le pilote a décidé de retourner aux stands.\n"); }
 		*tempsSec1 = GenRanNum(seed++, 25, 45); // Secteur 1 reçoit un temps.
 		*tempsSec2 = GenRanNum(seed++, 25, 45); // Secteur 2 aussi.
-		*tempsSec3 = GenRanNum(seed++, 30, 135); // Il faut générer un temps aux stands. 3600 - temps qui est déjà passé -135 secondes
+		float remainingTrialsTime = 3600 - *trialsDuration;
+		if (debugPrints == 1) { printf("Il reste %.3f secondes aux essais. Génération d'un temps compris entre 5 minutes et ce nombre de secondes...\n", remainingTrialsTime); }
+		*tempsSec3 = GenRanNum(seed++, 300, remainingTrialsTime); // Il faut générer un temps aux stands. 3600 - temps qui est déjà passé -135 secondes
 
 		*tempsTotal = *tempsSec1 + *tempsSec2 + *tempsSec3;
 		if (debugPrints == 1) { printf("Temps passé aux stands: %f\n", *tempsSec3); }
@@ -121,7 +123,7 @@ int Essais() {
 	}
 	
 	while ( trialsDuration < 3600 ) { // Boucle tournant tant que les essais n'ont pas atteint 60 minutes.
-		doingLap(&seed, &tempsSec1, &tempsSec2, &tempsSec3, &tempsTotal); // Lancement d'un tour de voiture.
+		doingLap(&seed, &tempsSec1, &tempsSec2, &tempsSec3, &tempsTotal, &trialsDuration); // Lancement d'un tour de voiture.
 		if (debugPrints == 1) { printf("Valeurs des meilleurs temps: %.3f, %.3f, %.3f, %.3f.\n", bestTimeSec1, bestTimeSec2, bestTimeSec3, bestTimeTot); } // Pas beau, faut faire un meilleur affichage.
 		if (debugPrints == 1) { printf("Temps effectués par la voiture: %.3f, %.3f, %.3f, %.3f. duree essais %.3f \n", tempsSec1, tempsSec2, tempsSec3, tempsTotal, trialsDuration); } // Idem.
 		trialsDuration += tempsTotal; // Ajout du temps total effectué par la voiture sur son tour au temps des essais.

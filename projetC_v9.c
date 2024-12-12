@@ -32,7 +32,16 @@ float GenRanNum(int seedIncrementer, int secMin, int secMax) { //Génére un tem
 	return randomTime;
 }
 
-int doingLap(int *graine, float *tempsSec1, float *tempsSec2, float *tempsSec3, float *tempsTotal, float *trialsDuration) { //Appelée par une voiture → Lance une simulation d'un tour, il peut aboutir en temps, en un crash ou en pit.
+int doingLap(int *graine, float *tempsSec1, float *tempsSec2, float *tempsSec3, float *tempsTotal, float *eventTemporalProgression, float *eventTotalDuration) { //Appelée par une voiture → Lance une simulation d'un tour, il peut aboutir en temps, en un crash ou en pit.
+	/*
+		*graine → Utilisé comme "référence" pour générer des nombres aléatoires.
+		*tempsSec1 → Sera utilisé pour stocker le temps effectué au secteur 1.
+		*tempsSec2 → Sera utilisé pour stocker le temps effectué au secteur 2.
+		*tempsSec3 → Sera utilisé pour stocker le temps effectué au secteur 3.
+		*tempsTotal → Sera utilisé pour stocker le temps total effectué.
+		*eventTemporalProgression → Où en est temporellement l'événement lors de l'appel doingLap ? (Sert pour calcul de temps dans les stands)
+		*eventTotalDuration → La durée totale de l'événement qui a appelé cette fonction (Sert pour le calcul de temps dans les stands)
+	*/
 	float bestTime = INFINITY;
 	int seed = *graine;
 	int diceResult = GenRanNum(seed++,1,101);
@@ -69,9 +78,9 @@ int doingLap(int *graine, float *tempsSec1, float *tempsSec2, float *tempsSec3, 
 		if (debugPrints == 1) { printf("Le pilote a décidé de retourner aux stands.\n"); }
 		*tempsSec1 = GenRanNum(seed++, 25, 45); // Secteur 1 reçoit un temps.
 		*tempsSec2 = GenRanNum(seed++, 25, 45); // Secteur 2 aussi.
-		float remainingTrialsTime = 3600 - *trialsDuration;
-		if (debugPrints == 1) { printf("Il reste %.3f secondes aux essais. Génération d'un temps compris entre 5 minutes et ce nombre de secondes...\n", remainingTrialsTime); }
-		*tempsSec3 = GenRanNum(seed++, 300, remainingTrialsTime); // Il faut générer un temps aux stands. 3600 - temps qui est déjà passé -135 secondes
+		float remainingTime = *eventTotalDuration - *eventTemporalProgression; // ATTENTION LE 3600
+		if (debugPrints == 1) { printf("Il reste %.3f secondes aux essais. Génération d'un temps compris entre 5 minutes et ce nombre de secondes...\n", remainingTime); }
+		*tempsSec3 = GenRanNum(seed++, 300, remainingTime); // Il faut générer un temps aux stands. Durée total de l'événement qui a appelé la fonction - temps qui est déjà passé -135 secondes
 
 		*tempsTotal = *tempsSec1 + *tempsSec2 + *tempsSec3;
 		if (debugPrints == 1) { printf("Temps passé aux stands: %f\n", *tempsSec3); }
@@ -106,6 +115,7 @@ int doingLap(int *graine, float *tempsSec1, float *tempsSec2, float *tempsSec3, 
 
 int Essais() {
 	// Variables qui contiendront les meilleurs temps.
+	float trialsTotalDuration = 3600;
 	float bestTimeSec1 = INFINITY;
 	float bestTimeSec2 = INFINITY;
 	float bestTimeSec3 = INFINITY;
@@ -117,16 +127,16 @@ int Essais() {
 	
 	
 	int seed4GenRanTime = 0; // Utilisée comme graine par GenRanNum() et incrémentée à chaque utilisation.
-	float trialsDuration = 0; // Variable qui compte la progression temporelle des essais.
+	float trialsTemporalProgression = 0; // Variable qui compte la progression temporelle des essais.
 	if (GenRanNum(seed4GenRanTime++, 0, 100) < 20) { // La voiture décide-t-elle de commencer plus tard que le commencement des essais ?
-		trialsDuration = GenRanNum(seed4GenRanTime++, 0, 40); // De combien de temps ? REVENIR DESSUS
+		trialsTemporalProgression = GenRanNum(seed4GenRanTime++, 0, 40); // De combien de temps ? REVENIR DESSUS
 	}
 	
-	while ( trialsDuration < 3600 ) { // Boucle tournant tant que les essais n'ont pas atteint 60 minutes.
-		doingLap(&seed, &tempsSec1, &tempsSec2, &tempsSec3, &tempsTotal, &trialsDuration); // Lancement d'un tour de voiture.
+	while ( trialsTemporalProgression < 3600 ) { // Boucle tournant tant que les essais n'ont pas atteint 60 minutes.
+		doingLap(&seed, &tempsSec1, &tempsSec2, &tempsSec3, &tempsTotal, &trialsTemporalProgression, &trialsTotalDuration); // Lancement d'un tour de voiture.
 		if (debugPrints == 1) { printf("Valeurs des meilleurs temps: %.3f, %.3f, %.3f, %.3f.\n", bestTimeSec1, bestTimeSec2, bestTimeSec3, bestTimeTot); } // Pas beau, faut faire un meilleur affichage.
-		if (debugPrints == 1) { printf("Temps effectués par la voiture: %.3f, %.3f, %.3f, %.3f. duree essais %.3f \n", tempsSec1, tempsSec2, tempsSec3, tempsTotal, trialsDuration); } // Idem.
-		trialsDuration += tempsTotal; // Ajout du temps total effectué par la voiture sur son tour au temps des essais.
+		if (debugPrints == 1) { printf("Temps effectués par la voiture: %.3f, %.3f, %.3f, %.3f. duree essais %.3f \n", tempsSec1, tempsSec2, tempsSec3, tempsTotal, trialsTemporalProgression); } // Idem.
+		trialsTemporalProgression += tempsTotal; // Ajout du temps total effectué par la voiture sur son tour au temps des essais.
 		
 		// Mise à jour des meilleurs temps.
 		if (tempsSec1 < bestTimeSec1) {
@@ -150,23 +160,95 @@ int Essais() {
 	printf(" BEST |  %.3f  |  %.3f  |  %.3f  |  %.3f  \n", bestTimeSec1, bestTimeSec2, bestTimeSec3, bestTimeTot); // Faudra convertir l'affichage des temps avec la fonction timeFormat()
 }
 
+void qualifs(const char* sessionName, int durationMinutes, int seed) {
+	// Fonction qui sort les meilleur temps de voiture à la fin des qualifs.
+    if (debugPrints == 1) { printf("Début de la session %s.\n", sessionName); }
+
+	// Variables qui contiendront les meilleurs temps.
+    float bestTimeSec1 = INFINITY;
+    float bestTimeSec2 = INFINITY;
+    float bestTimeSec3 = INFINITY;
+    float bestTimeTot = INFINITY;
+
+    // Variables qui seront mises à jour par doingLap() à chaque fois qu'une voiture effectue un tour.
+    float tempsSec1, tempsSec2, tempsSec3, tempsTotal;
+
+    // Initialisation de la variable qui nous sert à contrôler le temps de la session
+    float sessionDuration = 0;
+
+    // Simulation des tours et enregistrements des meilleuts temps en temps réel
+    while (sessionDuration < durationMinutes * 60) {
+        doingLap(&seed, &tempsSec1, &tempsSec2, &tempsSec3, &tempsTotal, &sessionDuration, &durationMinutes);
+        if (debugPrints == 1) { printf("Valeurs des meilleurs temps: %.3f, %.3f, %.3f, %.3f.\n", bestTimeSec1, bestTimeSec2, bestTimeSec3, bestTimeTot); }
+        if (debugPrints == 1) { printf("Temps effectués par la voiture: %.3f, %.3f, %.3f, %.3f. Durée %s : %.3f \n", tempsSec1, tempsSec2, tempsSec3, tempsTotal,sessionName, sessionDuration); }
+        sessionDuration += tempsTotal;
+        if (tempsSec1 < bestTimeSec1) {
+            bestTimeSec1 = tempsSec1;
+        }
+        if (tempsSec2 < bestTimeSec2) {
+            bestTimeSec2 = tempsSec2;
+        }
+        if (tempsSec3 < bestTimeSec3) {
+            bestTimeSec3 = tempsSec3;
+        }
+        if (tempsTotal < bestTimeTot) {
+            bestTimeTot = tempsTotal;
+        }
+    }
+
+    if (debugPrints == 1) { printf("Fin de la session %s.\n", sessionName); }
+    if (debugPrints == 1) { printf("Meilleurs temps de la session %s : Secteur 1: %.3f, Secteur 2: %.3f, Secteur 3: %.3f, Total: %.3f\n\n",
+           sessionName, bestTimeSec1, bestTimeSec2, bestTimeSec3, bestTimeTot); }
+    
+    //static float outputArray[4];
+    //outputArray[0] = bestTimeSec1;
+    //outputArray[1] = bestTimeSec2;
+    //outputArray[2] = bestTimeSec3;
+    //outputArray[3] = bestTimeTot;
+    //return outputArray;
+	// Classement final
+	printf(" Pos. | Temps S1 | Temps S2 | Temps S3 |  Total   \n");
+	printf("------|----------|----------|----------|----------\n");
+	// L'idée ici sera d'insérer les autres voitures.
+	printf("------|----------|----------|----------|----------\n");
+	printf(" BEST |  %.3f  |  %.3f  |  %.3f  |  %.3f  \n", bestTimeSec1, bestTimeSec2, bestTimeSec3, bestTimeTot); // Faudra convertir l'affichage des temps avec la fonction timeFormat()
+
+}
+
 int main() {
-	// Corps du projet.
-	// printf("n° voit | Temps S1 | Temps S2 | Temps S3 |  Total \n");
-	// printf("--------|----------|----------|----------|---------\n");
-	// printf("--------|bestTimeSec1|bestTimeSec2|bestTimeSec3|bestTimeTot\n");
+
+	// ESSAIS
+	printf("\n\n\n---------------{ESSAIS}---------------\n\n");
 	printf("ESSAIS P1\n");
 	sleep(1);
 	Essais();
-	printf("\n\n\n");
 
-	printf("ESSAIS P2\n");
+	printf("\n\nESSAIS P2\n");
 	sleep(1);
 	Essais();
-	printf("\n\n\n");
 
-	printf("ESSAIS P3\n");
+	printf("\n\nESSAIS P3\n");
 	sleep(1);
 	Essais();
-	printf("\n\n\n");
+	sleep(2);
+
+
+	// MEttre ici les qualifications
+	printf("\n\n\n---------------{QUALIFS}---------------\n\n");
+	int refSeed = time(NULL);
+	printf("QUALIFS Q1\n");
+	sleep(1);
+	qualifs("Q1", 18, refSeed++);
+
+	printf("\n\nQUALIFS Q2\n");
+	sleep(1);
+	qualifs("Q2", 15, refSeed++);
+
+	printf("\n\nQUALIFS Q3\n");
+	sleep(1);
+	qualifs("Q3", 12, refSeed++);
+
+	// Mettre ici la course du dimanche
+	sleep(2);
+	printf("\n\n\n---------------{COURSE}---------------\n\n");
 }

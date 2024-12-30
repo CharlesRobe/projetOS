@@ -6,52 +6,47 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-// Liste (statique) des numéros de voitures
+// Liste (statique) des numéros de voiture (toujours 20)
 static int carNumbers[MAX_CARS] = {
-  1, 11, 44, 63, 16, 55, 4, 81, 14, 18,
-  10, 31, 23, 2, 22, 3, 77, 24, 20, 27
+    1, 11, 44, 63, 16, 55, 4, 81, 14, 18,
+    10, 31, 23, 2, 22, 3, 77, 24, 20, 27
 };
 
-// Initialisation de la "Race"
-int init_race(Race *race, int nbCars, int isSprintWeekend)
+int init_race(Race *race, int isSprintWeekend)
 {
-    if (nbCars > MAX_CARS) {
-        fprintf(stderr, "Trop de voitures (%d), max = %d\n", nbCars, MAX_CARS);
-        return -1;
-    }
-
-    race->numberOfCars = nbCars;
+    // On force 20 voitures
+    race->numberOfCars = MAX_CARS;
     race->currentStage = STAGE_NONE;
-    race->totalLaps    = 50;  // Ex : 50 tours pour la course
+    race->totalLaps    = 50;   // Exemple : 50 tours
     race->currentLap   = 0;
-    race->sprintLaps   = 20;  // Ex : 20 tours pour le sprint
+    race->sprintLaps   = 20;   // Exemple : 20 tours pour la course sprint
     race->isSprintWeekend = isSprintWeekend;
 
     // Init des voitures
-    for (int i = 0; i < nbCars; i++) {
-        race->cars[i].pid = 0;
+    for (int i = 0; i < MAX_CARS; i++) {
+        race->cars[i].pid       = 0;
         race->cars[i].carNumber = carNumbers[i];
-        race->cars[i].status = CAR_RUNNING;
+        race->cars[i].status    = CAR_RUNNING;
         for (int p = 0; p < 3; p++) {
             race->cars[i].bestTimePractice[p] = 9999.0;
             race->cars[i].bestTimeQualif[p]   = 9999.0;
         }
         race->cars[i].bestTimeRace = 9999.0;
-        race->cars[i].points = 0;
+        race->cars[i].points       = 0;
     }
     return 0;
 }
 
-/* 
-   manage_weekend : enchaîne les différentes sessions d’un GP
-   Format classique : P1 -> P2 -> P3 -> Q1 -> Q2 -> Q3 -> RACE
-   Format sprint    : P1 -> Q1 -> Q2 -> Q3 -> SPRINT -> Q1 -> Q2 -> Q3 -> RACE
-   (Ici on fait un exemple "simplifié" pour la démo.)
+/*
+   manage_weekend : enchaîne les sessions
+   - Classique : P1 -> P2 -> P3 -> Q1 -> Q2 -> Q3 -> RACE
+   - Sprint : P1 -> Q1 -> Q2 -> Q3 -> SPRINT -> Q1 -> Q2 -> Q3 -> RACE
+   (code simplifié pour illustration)
 */
 void manage_weekend(Race *race)
 {
-    // === CAS WEEK-END CLASSIQUE ===
     if (!race->isSprintWeekend) {
+        // Week-end classique
         start_session(race, STAGE_P1);
         end_session(race,   STAGE_P1);
 
@@ -61,7 +56,6 @@ void manage_weekend(Race *race)
         start_session(race, STAGE_P3);
         end_session(race,   STAGE_P3);
 
-        // Qualifications
         start_session(race, STAGE_Q1);
         end_session(race,   STAGE_Q1);
 
@@ -71,69 +65,66 @@ void manage_weekend(Race *race)
         start_session(race, STAGE_Q3);
         end_session(race,   STAGE_Q3);
 
-        // Course
         start_session(race, STAGE_RACE);
         end_session(race,   STAGE_RACE);
-    }
-    // === CAS WEEK-END SPRINT === (exemple simplifié)
-    else {
+    } else {
+        // Week-end sprint
         start_session(race, STAGE_P1);
         end_session(race,   STAGE_P1);
 
-        // Qualifications (pour sprint)
+        // Qualifications pour sprint
         start_session(race, STAGE_Q1);
         end_session(race,   STAGE_Q1);
+
         start_session(race, STAGE_Q2);
         end_session(race,   STAGE_Q2);
+
         start_session(race, STAGE_Q3);
         end_session(race,   STAGE_Q3);
 
-        // Sprint
+        // Course sprint
         start_session(race, STAGE_SPRINT);
         end_session(race,   STAGE_SPRINT);
 
-        // Nouvelles qualifications (pour la course du dimanche),
-        // on réutilise Q1,Q2,Q3 pour l’exemple :
+        // Re-qualifications pour la course du dimanche
         start_session(race, STAGE_Q1);
         end_session(race,   STAGE_Q1);
+
         start_session(race, STAGE_Q2);
         end_session(race,   STAGE_Q2);
+
         start_session(race, STAGE_Q3);
         end_session(race,   STAGE_Q3);
 
-        // Course
+        // Course principale
         start_session(race, STAGE_RACE);
         end_session(race,   STAGE_RACE);
     }
 }
 
-// Lance une session (ex : P1, P2, …, Q1, …)
+// Lance une session
 void start_session(Race *race, Stage sessionStage)
 {
     race->currentStage = sessionStage;
     printf("\n=== Début de la session %d ===\n", sessionStage);
 
-    // Forquer chaque voiture
+    // Forker un process par voiture
     for (int i = 0; i < race->numberOfCars; i++) {
         pid_t pid = fork();
         if (pid < 0) {
             error_exit("fork");
         } else if (pid == 0) {
-            // Enfant : on lance run_car_process
+            // Enfant
             run_car_process(i);
-            // Jamais revenir ici
+            // Jamais revenir
         } else {
-            // Parent : on stocke le PID
+            // Parent
             race->cars[i].pid = pid;
         }
     }
 
-    // Le parent "gère" la session :
-    // (Dans un vrai code, on ferait un while() qui reçoit les temps
-    //  régulièrement, met à jour le classement, etc.)
-
-    // Dans l’exemple, on se contente de "patienter" 5 secondes,
-    // puis on tue les enfants pour simuler la fin de session
+    // Dans un vrai code : on récupère régulièrement les temps, on met à jour…
+    // Ici, simplification : on attend 5s pour la session
     sleep(5);
 }
 
@@ -142,7 +133,7 @@ void end_session(Race *race, Stage sessionStage)
 {
     printf("=== Fin de la session %d ===\n", sessionStage);
 
-    // On tue tous les enfants (on envoie un signal)
+    // On tue les enfants
     for (int i = 0; i < race->numberOfCars; i++) {
         if (race->cars[i].pid > 0) {
             kill(race->cars[i].pid, SIGTERM);
@@ -157,29 +148,22 @@ void end_session(Race *race, Stage sessionStage)
         }
     }
 
-    // On met à jour le classement
+    // Mise à jour du classement
     update_classification(race, sessionStage);
 
-    // On l’affiche
+    // Affichage
     display_classification(race, sessionStage);
 
-    // On sauvegarde
+    // Sauvegarde
     char filename[64];
     sprintf(filename, "results_stage_%d.txt", sessionStage);
     save_results(race, sessionStage, filename);
 }
 
-// Tri / mise à jour (simplifiée)
 void update_classification(Race *race, Stage sessionStage)
 {
-    // Pour l’exemple, on ne fait pas grand-chose de concret,
-    // car on ne reçoit pas vraiment les meilleurs temps en direct.
-    // On peut imaginer un tri par "bestTimePractice[sessionStage]" ou autre.
-
-    // (Ici, on ne tri pas vraiment, on fait juste un swap bidon.)
-    // A adapter si vous gérez réellement les temps.
-
-    // Ex : tri par carNumber :
+    // Dans un vrai code, on trierait par meilleur temps obtenu
+    // ou distance parcourue. Ici, on fait un tri simple par carNumber.
     for (int i = 0; i < race->numberOfCars - 1; i++) {
         for (int j = i + 1; j < race->numberOfCars; j++) {
             if (race->cars[j].carNumber < race->cars[i].carNumber) {

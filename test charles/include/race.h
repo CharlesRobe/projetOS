@@ -3,7 +3,7 @@
 
 #include "car.h"
 
-// Différents « stades » du week-end
+// Différents « stades » d’un week-end
 typedef enum {
     STAGE_P1,
     STAGE_P2,
@@ -18,23 +18,22 @@ typedef enum {
 
 // Structure principale : gère l’état global du week-end
 typedef struct {
-    int numberOfCars;
-    Car cars[MAX_CARS];
+    int  numberOfCars;        // Toujours 20
+    Car  cars[MAX_CARS];
 
-    Stage currentStage;  // P1, P2, P3, Q1, Q2, Q3, SPRINT, RACE
-    int totalLaps;       // Nombre de tours si besoin (course)
-    int currentLap;      // Tour en cours (course)
-    int sprintLaps;      // Nombre de tours pour la course sprint (si existante)
+    Stage currentStage;       // P1, P2, P3, Q1, Q2, Q3, SPRINT, RACE…
+    int   totalLaps;          // Nombre de tours pour la course
+    int   currentLap;         // Tour en cours (course)
+    int   sprintLaps;         // Nombre de tours pour la course sprint
 
-    // Autres champs selon vos besoins :
-    int isSprintWeekend; // 0 = week-end classique, 1 = sprint
+    int   isSprintWeekend;    // 0 = classique, 1 = sprint
 } Race;
 
 // Fonctions de gestion du week-end
-int  init_race(Race *race, int nbCars, int isSprintWeekend);
+int  init_race(Race *race, int isSprintWeekend);
 void manage_weekend(Race *race);
 
-// Fonctions de session (une session = P1 ou P2, Q1, Q2, ...)
+// Fonctions de session
 void start_session(Race *race, Stage sessionStage);
 void end_session(Race *race, Stage sessionStage);
 

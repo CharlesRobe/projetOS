@@ -19,11 +19,9 @@ typedef struct {
     CarStatus status;     // CAR_RUNNING, CAR_PIT ou CAR_OUT
 
     // Meilleurs temps par session (P1, P2, P3, Q1, Q2, Q3, Course…)
-    // On simplifie : on ne stocke que "meilleur tour global" par session.
     double bestTimePractice[3];   // P1,P2,P3
     double bestTimeQualif[3];     // Q1,Q2,Q3
-    double bestTimeRace;          // Pour la course
-    // (Vous pouvez stocker aussi le meilleur S1, S2, S3 par session.)
+    double bestTimeRace;          // Pour la course (simplifié)
 
     // Points cumulés pour le championnat
     int points;

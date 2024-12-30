@@ -5,24 +5,24 @@
 
 int main(int argc, char *argv[])
 {
-    // Usage: ./f1_sim <nbVoitures> <0|1 pour sprint>
-    if (argc < 3) {
-        fprintf(stderr, "Usage: %s <nbCars> <isSprintWeekend>\n", argv[0]);
+    // Usage: ./f1_sim <isSprintWeekend>
+    // 0 = week-end classique
+    // 1 = week-end sprint
+    if (argc < 2) {
+        fprintf(stderr, "Usage: %s <0|1>\n", argv[0]);
         exit(EXIT_FAILURE);
     }
 
-    int nbCars = atoi(argv[1]);
-    int sprint = atoi(argv[2]);
+    int sprint = atoi(argv[1]);
 
     Race race;
-    if (init_race(&race, nbCars, sprint) != 0) {
+    if (init_race(&race, sprint) != 0) {
         error_exit("Erreur init_race");
     }
 
-    // Enchaînement du week-end
+    // Enchaînement du week-end (sessions)
     manage_weekend(&race);
 
     printf("\n>>> Week-end terminé !\n");
-
     return 0;
 }

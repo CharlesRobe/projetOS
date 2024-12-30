@@ -3,28 +3,33 @@
 
 #include <sys/types.h>
 
-// Nombre maximum de voitures (peut être 20)
 #define MAX_CARS 20
 
-// État possible de la voiture
+// État d’une voiture
 typedef enum {
     CAR_RUNNING,
     CAR_PIT,
     CAR_OUT
 } CarStatus;
 
-// Structure de la voiture
+// Structure contenant les données d’une voiture
 typedef struct {
-    pid_t pid;          // PID du processus associé à la voiture
-    int carNumber;      // Numéro de la voiture
-    CarStatus status;   // État actuel (en piste, pit, out)
-    double bestLapTime; // Meilleur temps au tour
-    double bestS1;      // Meilleur temps secteur 1
-    double bestS2;      // Meilleur temps secteur 2
-    double bestS3;      // Meilleur temps secteur 3
+    pid_t pid;            // PID du process associé
+    int   carNumber;      // Numéro de la voiture (ex: 1, 11, 44, ...)
+    CarStatus status;     // CAR_RUNNING, CAR_PIT ou CAR_OUT
+
+    // Meilleurs temps par session (P1, P2, P3, Q1, Q2, Q3, Course…)
+    // On simplifie : on ne stocke que "meilleur tour global" par session.
+    double bestTimePractice[3];   // P1,P2,P3
+    double bestTimeQualif[3];     // Q1,Q2,Q3
+    double bestTimeRace;          // Pour la course
+    // (Vous pouvez stocker aussi le meilleur S1, S2, S3 par session.)
+
+    // Points cumulés pour le championnat
+    int points;
 } Car;
 
-// Prototypes
+// Fonctions associées à la voiture (gérées dans car.c)
 void run_car_process(int carIndex);
 double generate_sector_time(int sector);
 void handle_pit_stop();

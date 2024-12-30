@@ -9,7 +9,6 @@
 #include <signal.h>
 #include <string.h>
 
-// Ajoutez ici toutes vos fonctions utilitaires, constantes, etc.
 void error_exit(const char *message);
 
 #endif /* UTILS_H */

@@ -1,50 +1,64 @@
 #include "car.h"
+#include "f1shared.h"
+#include "rwcourtois.h"
 #include "utils.h"
-#include <stdio.h>
-#include <stdlib.h>
+#include <sys/shm.h>
 #include <time.h>
+#include <stdlib.h>
+#include <stdio.h>
 #include <unistd.h>
 
-// On envoie s1,s2,s3, + un "pit?" + un "out?"
-void run_car_process(int indexCar, int writeFd)
+void run_car_process(int idxCar)
 {
+    int sid= shmget(SHM_KEY, sizeof(F1Shared),0);
+    if(sid<0) error_exit("shmget car");
+    F1Shared* f1= (F1Shared*) shmat(sid,NULL,0);
+    if((void*)f1==(void*)-1) error_exit("shmat car");
     srand(time(NULL) ^ (getpid()<<16));
 
-    while(1) {
-        // ~3% out
+    while(1){
+        // Crash 3%
         if((rand()%100)<3){
-            // s1=-1 => out
-            double outVal=-1.0;
-            write(writeFd, &outVal, sizeof(double)); // s1
-            write(writeFd, &outVal, sizeof(double)); // s2
-            write(writeFd, &outVal, sizeof(double)); // s3
-            // pit=0
-            double pitVal=0.0;
-            write(writeFd, &pitVal, sizeof(double));
-            usleep(100000); // un mini-delai
+            ecrire_debut();
+            f1->cars[idxCar].status= CAR_OUT;
+            f1->carsFinished++;
+            ecrire_fin();
             _exit(0);
         }
+        double s1=25+(rand()%21);
+        double s2=25+(rand()%21);
+        double s3=25+(rand()%21);
+        double lapTime= s1+s2+s3;
 
-        double s1 = 25 + (rand()%21) + (rand()%1000)/1000.0;
-        double s2 = 25 + (rand()%21) + (rand()%1000)/1000.0;
-        double s3 = 25 + (rand()%21) + (rand()%1000)/1000.0;
-
-        // pit 5%
-        double pitVal=0.0;
+        // Pit 5%
         if((rand()%100)<5){
-            pitVal=1.0; // pit
-            // On simule +25 s => on n’envoie pas forcément, mais ...
-            // On dort 2 s
-            sleep(2);
+            // Essais/Qualifs => 5 min = 300s, Course => 5s ? (logic to adapt)
+            lapTime+=300.0;
         }
-
-        // On envoie s1, s2, s3, pitVal
-        write(writeFd, &s1, sizeof(double));
-        write(writeFd, &s2, sizeof(double));
-        write(writeFd, &s3, sizeof(double));
-        write(writeFd, &pitVal, sizeof(double));
-
-        // 0.5 s entre chaque "tour"
+        ecrire_debut();
+        double rem= f1->cars[idxCar].remaining;
+        if(rem<=0.1){
+            ecrire_fin();
+            _exit(0);
+        }
+        if(lapTime>rem) lapTime=rem;
+        rem-= lapTime;
+        f1->cars[idxCar].remaining= rem;
+        if(lapTime< f1->cars[idxCar].bestLap){
+            f1->cars[idxCar].bestLap= lapTime;
+        }
+        if(s1< f1->cars[idxCar].bestS1) f1->cars[idxCar].bestS1= s1;
+        if(s2< f1->cars[idxCar].bestS2) f1->cars[idxCar].bestS2= s2;
+        if(s3< f1->cars[idxCar].bestS3) f1->cars[idxCar].bestS3= s3;
+        if(rem<=0.1){
+            f1->cars[idxCar].status=CAR_OUT;
+            f1->carsFinished++;
+            ecrire_fin();
+            _exit(0);
+        } else {
+            f1->cars[idxCar].status= CAR_RUNNING;
+        }
+        ecrire_fin();
         usleep(500000);
     }
 }

@@ -2,9 +2,10 @@
 #define RACE_H
 
 #include "car.h"
+#include "circuit.h"
 
-// Différents « stades » d’un week-end
 typedef enum {
+    STAGE_NONE = 0,
     STAGE_P1,
     STAGE_P2,
     STAGE_P3,
@@ -12,34 +13,46 @@ typedef enum {
     STAGE_Q2,
     STAGE_Q3,
     STAGE_SPRINT,
-    STAGE_RACE,
-    STAGE_NONE
+    STAGE_RACE
 } Stage;
 
-// Structure principale : gère l’état global du week-end
+// Informations sur un Grand Prix donné
 typedef struct {
-    int  numberOfCars;        // Toujours 20
-    Car  cars[MAX_CARS];
+    Circuit circuit;   // Infos sur le circuit
+    int     isSpecial; // 0 = normal, 1 = sprint
+    int     nbToursCourse; // Nombre de tours (dimanche)
+    int     nbToursSprint; // Nombre de tours (samedi sprint)
+} GrandPrix;
 
-    Stage currentStage;       // P1, P2, P3, Q1, Q2, Q3, SPRINT, RACE…
-    int   totalLaps;          // Nombre de tours pour la course
-    int   currentLap;         // Tour en cours (course)
-    int   sprintLaps;         // Nombre de tours pour la course sprint
+typedef struct {
+    Car cars[MAX_CARS];
 
-    int   isSprintWeekend;    // 0 = classique, 1 = sprint
-} Race;
+    // Infos sur la session en cours
+    Stage currentStage;
 
-// Fonctions de gestion du week-end
-int  init_race(Race *race, int isSprintWeekend);
-void manage_weekend(Race *race);
+    // Nombre total de GP
+    int   nbGP;
+    // Index du GP en cours (0..nbGP-1)
+    int   currentGP;
+    GrandPrix gpList[MAX_CIRCUITS]; // On stocke jusqu’à 30 GP max
 
-// Fonctions de session
-void start_session(Race *race, Stage sessionStage);
-void end_session(Race *race, Stage sessionStage);
+    // Classement général (points cumulés, etc.)
+    // -> On peut juste stocker dans Car.points
+} Championship;
 
-// Mise à jour, affichage et sauvegarde
-void update_classification(Race *race, Stage sessionStage);
-void display_classification(const Race *race, Stage sessionStage);
-void save_results(const Race *race, Stage sessionStage, const char *filename);
+// Fonctions principales
+void init_championship(Championship *champ, Circuit circuits[], int nbCircuits);
+void run_current_session(Championship *champ);
+
+// Pour enchaîner les étapes d’un GP
+void next_stage(Championship *champ);
+void start_stage(Championship *champ, Stage stage);
+void end_stage(Championship *champ, Stage stage);
+
+// Affichage & classement
+void display_classification(const Championship *champ);
+void update_classification(Championship *champ);
+void save_results_session(const Championship *champ, const char *filename);
+void save_championship(const Championship *champ, const char *filename);
 
 #endif /* RACE_H */

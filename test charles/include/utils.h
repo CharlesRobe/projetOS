@@ -9,6 +9,6 @@
 #include <signal.h>
 #include <string.h>
 
-void error_exit(const char *message);
+void error_exit(const char *msg);
 
 #endif /* UTILS_H */

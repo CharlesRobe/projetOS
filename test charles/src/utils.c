@@ -1,7 +1,7 @@
 #include "utils.h"
 
-void error_exit(const char *message)
+void error_exit(const char *msg)
 {
-    perror(message);
-    exit(EXIT_FAILURE);
+    perror(msg);
+    _exit(1);
 }

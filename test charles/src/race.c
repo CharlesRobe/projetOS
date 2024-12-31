@@ -8,14 +8,14 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-// Table des numéros de voitures
+// Table des 20 numéros de voiture (fixe)
 static int carNumbers[MAX_CARS] = {
-    1,11,44,63,16,55,4,81,14,18,
-    10,31,23,2,22,3,77,24,20,27
+    1, 11, 44, 63, 16, 55, 4, 81, 14, 18,
+    10, 31, 23, 2, 22, 3, 77, 24, 20, 27
 };
 
-// Cherche si gpName (par ex. "Bahrain") matche un circuit
-// Sinon prend circuits[0].
+// Rechercher un circuit dont le nom contient gpName.
+// Si rien ne match, on prend circuits[0].
 void init_new_gp(GPState *gp,
                  const char *gpName,
                  int isSprint,
@@ -24,19 +24,19 @@ void init_new_gp(GPState *gp,
 {
     memset(gp, 0, sizeof(GPState));
     gp->isSprint = isSprint;
-    gp->currentSession = SESS_P1;
+    gp->currentSession = SESS_P1;  // On commence par P1
     strncpy(gp->gpName, gpName, sizeof(gp->gpName));
     gp->gpName[sizeof(gp->gpName)-1] = '\0';
 
-    // Rechercher un circuit dont le nom contient gpName
+    // Recherche dans circuits[]
     int found = -1;
     for(int i=0; i<nbCirc; i++){
-        if(strstr(circuits[i].nom, gpName)!=NULL) {
+        if(strstr(circuits[i].nom, gpName)!=NULL){
             found = i;
             break;
         }
     }
-    if(found<0) {
+    if(found<0){
         // Pas trouvé => on prend le premier
         gp->circuit = circuits[0];
     } else {
@@ -63,82 +63,81 @@ void run_session(GPState *gp)
 
     printf("\n=== [GP: %s | Session: %d] ===\n", gp->gpName, gp->currentSession);
 
-    // On crée un pipe par voiture : pipefd[i][0]=lecture parent, [i][1]=écriture enfant
+    // 1) Créer un pipe par voiture
     int pipefd[MAX_CARS][2];
     for(int i=0; i<MAX_CARS; i++){
-        if(pipe(pipefd[i])<0) {
+        if(pipe(pipefd[i])<0){
             error_exit("pipe");
         }
     }
 
-    // Fork 20 voitures
+    // 2) Fork 20 voitures
     for(int i=0; i<MAX_CARS; i++){
         pid_t p = fork();
         if(p<0){
             error_exit("fork");
         }
         else if(p==0){
-            // Enfant : on ferme le "pipefd[i][0]" (lecture) et on garde pipefd[i][1] (écriture).
-            close(pipefd[i][0]);
-            // On lance le process
-            run_car_process(i, pipefd[i][1]);
-            // Jamais revenir ici
-        } else {
+            // Enfant
+            close(pipefd[i][0]);  // on ferme la lecture
+            run_car_process(i, pipefd[i][1]); 
+        }
+        else {
             // Parent
             gp->cars[i].pid = p;
-            // On ferme le "pipefd[i][1]" (écriture enfant) et on garde [i][0] (lecture).
-            close(pipefd[i][1]);
+            close(pipefd[i][1]);  // on ferme l’écriture
         }
     }
 
-    // On fait un rafraîchissement "live" toutes les 2s, pendant X secondes
+    // 3) Durée simulée de la session (en secondes)
     int duration=8;
     switch(gp->currentSession){
         case SESS_Q1: case SESS_Q2: case SESS_Q3:
-            duration=6; break;
+            duration=6;
+            break;
         case SESS_SPRINT:
-            duration=5; break;
+            duration=5;
+            break;
         case SESS_RACE:
-            duration=10; break;
+            duration=10;
+            break;
         default:
-            duration=8; break;
+            duration=8;
     }
 
-    // Pendant la session, on lit régulièrement les pipes
-    // On va faire "duration" * 1000 ms / 2000 ms => steps
-    int steps = duration*(1000/2000);
-
+    // 4) On va rafraîchir l’affichage toutes les 2 secondes
+    int steps = duration * (1000 / 2000); // ex.: 8 s / 2 s = 4
     for(int s=0; s<steps; s++){
-        // On lit NON-BLOQUANT : si y a un lapTime, on met à jour bestLap
+        // Lire en non-bloquant sur chaque pipe
         for(int i=0; i<MAX_CARS; i++){
             double lapTime;
-            // read(...) en mode "si pas de donnée, continue"
             int r = read(pipefd[i][0], &lapTime, sizeof(double));
-            while(r>0) {
-                // On a lu un lapTime
-                if(lapTime<gp->cars[i].bestLap) {
+            while(r>0){
+                if(lapTime < gp->cars[i].bestLap){
                     gp->cars[i].bestLap = lapTime;
                 }
-                // On tente de relire s'il y a d'autres paquets
                 r = read(pipefd[i][0], &lapTime, sizeof(double));
             }
-            // s'il n'y a rien, on continue
         }
 
-        // On trie pour un "live" scoreboard
+        // Tri
         sort_cars_by_bestlap(gp);
-        display_classification(gp, "Live scoreboard", 1);
+
+        // Affichage "live"
+        printf("\n--- [Live scoreboard: session %d, step=%d] ---\n", 
+               gp->currentSession, s);
+        display_classification(gp, "Classement provisoire", 1);
 
         sleep(2);
     }
 
-    // Fin de la session => kill les enfants
+    // 5) Fin de session => kill tous les enfants
     for(int i=0; i<MAX_CARS; i++){
         if(gp->cars[i].pid>0){
             kill(gp->cars[i].pid, SIGTERM);
         }
     }
-    // On wait
+    // Wait
     for(int i=0; i<MAX_CARS; i++){
         if(gp->cars[i].pid>0){
             waitpid(gp->cars[i].pid, NULL, 0);
@@ -146,11 +145,11 @@ void run_session(GPState *gp)
         }
     }
 
-    // Lecture finale (au cas où y aurait des laps en buffer) => bestLap à jour
+    // 6) Lecture finale (récupérer derniers tours en buffer)
     for(int i=0; i<MAX_CARS; i++){
         double lapTime;
-        while(read(pipefd[i][0], &lapTime, sizeof(double))>0) {
-            if(lapTime<gp->cars[i].bestLap) {
+        while(read(pipefd[i][0], &lapTime, sizeof(double))>0){
+            if(lapTime < gp->cars[i].bestLap){
                 gp->cars[i].bestLap = lapTime;
             }
         }
@@ -159,56 +158,69 @@ void run_session(GPState *gp)
 
     // Tri final
     sort_cars_by_bestlap(gp);
-    display_classification(gp, "Classement final de la session", 0);
+
+    // 7) Affichage final de la session
+    printf("\n=== Classement final de la session %d ===\n", gp->currentSession);
+    display_classification(gp, "Classement final", 0);
+
+    // Si tu veux sauvegarder ce classement dans un fichier, tu peux le faire ici
+    // ex: FILE *f = fopen("results_sess_X.txt", "w"); ...
 }
 
-// Avance la session
+// Avance la session (P1->P2->P3->Q1->Q2->Q3->SPRINT->RACE->FINISHED)
 void next_session(GPState *gp)
 {
     switch(gp->currentSession){
         case SESS_NONE:
-            gp->currentSession=SESS_P1; break;
+            gp->currentSession=SESS_P1;
+            break;
         case SESS_P1:
-            gp->currentSession=SESS_P2; break;
+            gp->currentSession=SESS_P2;
+            break;
         case SESS_P2:
-            gp->currentSession=SESS_P3; break;
+            gp->currentSession=SESS_P3;
+            break;
         case SESS_P3:
-            gp->currentSession=SESS_Q1; break;
+            gp->currentSession=SESS_Q1;
+            break;
         case SESS_Q1:
-            gp->currentSession=SESS_Q2; break;
+            gp->currentSession=SESS_Q2;
+            break;
         case SESS_Q2:
-            gp->currentSession=SESS_Q3; break;
+            gp->currentSession=SESS_Q3;
+            break;
         case SESS_Q3:
-            if(gp->isSprint) gp->currentSession=SESS_SPRINT;
-            else gp->currentSession=SESS_RACE;
+            if(gp->isSprint) gp->currentSession = SESS_SPRINT;
+            else gp->currentSession = SESS_RACE;
             break;
         case SESS_SPRINT:
-            gp->currentSession=SESS_RACE; break;
+            gp->currentSession=SESS_RACE;
+            break;
         case SESS_RACE:
         default:
-            gp->currentSession=SESS_FINISHED; break;
+            gp->currentSession=SESS_FINISHED;
+            break;
     }
 }
 
-// Attribue les points si c'est la sprint ou la course
+// Quand la session se termine, on donne les points selon le type de session
 void end_session(GPState *gp)
 {
     SessionType st = gp->currentSession;
-    // Sprint
     if(st==SESS_SPRINT){
-        // top 8 => 8..1
+        // top 8 : 8..1
         int sprintPts[8] = {8,7,6,5,4,3,2,1};
         for(int i=0; i<8; i++){
             gp->cars[i].points += sprintPts[i];
         }
     }
     else if(st==SESS_RACE){
-        // top10 => 25..1
+        // top10 : 25..1
         int racePts[10] = {25,20,15,10,8,6,5,3,2,1};
         for(int i=0; i<10; i++){
             gp->cars[i].points += racePts[i];
         }
-        // +1 point meilleur tour (on suppose la #1 du classement => bestLap plus rapide)
+        // +1 point meilleur tour => la voiture #0 du classement
         gp->cars[0].points +=1;
     }
 }
@@ -219,7 +231,7 @@ void sort_cars_by_bestlap(GPState *gp)
     for(int i=0; i<MAX_CARS-1; i++){
         for(int j=i+1; j<MAX_CARS; j++){
             if(gp->cars[j].bestLap < gp->cars[i].bestLap){
-                Car tmp = gp->cars[i];
+                Car tmp=gp->cars[i];
                 gp->cars[i] = gp->cars[j];
                 gp->cars[j] = tmp;
             }
@@ -227,15 +239,15 @@ void sort_cars_by_bestlap(GPState *gp)
     }
 }
 
-// Affichage “beau tableau”
+// Affiche un tableau ASCII
+// liveMode=1 => on peut afficher "LIVE" ou "provisoire"
+// liveMode=0 => affichage final
 void display_classification(const GPState *gp, const char *title, int liveMode)
 {
     if(liveMode){
-        printf("\n-- %s (live) --\n", title);
-    } else {
-        printf("\n-- %s --\n", title);
+        printf("(LIVE) ");
     }
-    print_ascii_table_header("");
+    print_ascii_table_header(title);
     for(int i=0; i<MAX_CARS; i++){
         print_ascii_table_row(i+1,
                               gp->cars[i].carNumber,
@@ -245,6 +257,7 @@ void display_classification(const GPState *gp, const char *title, int liveMode)
     print_ascii_table_footer();
 }
 
+// Sauvegarde finale
 void save_final_classification(const GPState *gp, const char *filename)
 {
     // Tri par points desc
@@ -252,7 +265,6 @@ void save_final_classification(const GPState *gp, const char *filename)
     for(int i=0; i<MAX_CARS; i++){
         sorted[i] = gp->cars[i];
     }
-    // tri desc
     for(int i=0; i<MAX_CARS-1; i++){
         for(int j=i+1; j<MAX_CARS; j++){
             if(sorted[j].points>sorted[i].points){

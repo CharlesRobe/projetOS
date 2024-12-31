@@ -14,7 +14,7 @@ EXEC = f1_sim
 all: $(EXEC)
 
 $(EXEC): $(OBJ)
-	$(CC) $(CFLAGS) -o $@ $(OBJ)
+	$(CC) $(CFLAGS) -o $@ $(OBJ) -lm
 
 $(SRC)/main.o: $(SRC)/main.c $(INC)/utils.h $(INC)/csvutils.h $(INC)/race.h
 	$(CC) $(CFLAGS) -I$(INC) -c $< -o $@

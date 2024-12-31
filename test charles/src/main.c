@@ -6,84 +6,69 @@
 #include <stdlib.h>
 #include <string.h>
 
-// Usage :
-//  - ./f1_sim            => reprendre la session en cours
-//  - ./f1_sim NomCourse  => nouveau GP (classique)
-//  - ./f1_sim NomCourse special => nouveau GP (sprint)
-
 int main(int argc, char *argv[])
 {
-    // Charger la liste des circuits
+    // On charge le CSV
     Circuit circuits[MAX_CIRCUITS];
     int nbC = load_circuits_from_csv("circuits.csv", circuits, MAX_CIRCUITS);
     if(nbC<1){
-        printf("Impossible de charger circuits.csv\n");
+        printf("Erreur: impossible de charger circuits.csv\n");
         return 1;
     }
 
-    GrandPrixWeekend gpw;
-    memset(&gpw, 0, sizeof(gpw));
+    GPState gp;
+    memset(&gp,0,sizeof(gp));
 
     if(argc==1){
         // Reprendre
-        if(load_state(&gpw)<0){
+        if(load_state(&gp)<0){
             printf("Aucune session en cours (gp_state.dat introuvable)\n");
             return 0;
         }
-
-        if(gpw.currentSession==SESS_FINISHED){
-            printf("Le GP '%s' est déjà terminé.\n", gpw.gpName);
+        if(gp.currentSession==SESS_FINISHED){
+            printf("Le GP '%s' est déjà terminé.\n", gp.gpName);
             return 0;
         }
 
-        // Lancer la session courante
-        run_session(&gpw);
-        // Fin => points, etc.
-        end_session(&gpw);
+        // Lancer la session
+        run_session(&gp);
+        // Fin => points
+        end_session(&gp);
 
-        // Passer à la session suivante
-        next_session(&gpw);
+        // Next
+        next_session(&gp);
 
-        if(gpw.currentSession==SESS_FINISHED){
-            // On sauvegarde le classement final
-            printf("GP '%s' terminé !\n", gpw.gpName);
-            save_final_classification(&gpw, "final_result.txt");
+        if(gp.currentSession==SESS_FINISHED){
+            printf("GP '%s' terminé!\n", gp.gpName);
+            save_final_classification(&gp, "final_result.txt");
             remove_state();
-            printf("Classement final écrit dans 'final_result.txt'.\n");
         } else {
-            // Sauvegarder l’état
-            save_state(&gpw);
-            printf("Session terminée. Prochaine session: %d.\n", gpw.currentSession);
+            save_state(&gp);
+            printf("Session terminée => Prochaine session: %d\n", gp.currentSession);
         }
-    }
-    else {
-        // On a au moins 1 argument => on démarre un nouveau GP
-        // ex: ./f1_sim "Bahrain" special
-        int isSprint = 0;
-        if(argc>=3 && strcmp(argv[2], "special")==0){
+
+    } else {
+        // arguments => nouveau GP
+        // ./f1_sim <NomGP> [special]
+        int isSprint=0;
+        if(argc>=3 && strcmp(argv[2],"special")==0){
             isSprint=1;
         }
+        init_new_gp(&gp, argv[1], isSprint, circuits, nbC);
 
-        init_new_gp(&gpw, argv[1], isSprint, circuits, nbC);
+        // Lance la première session
+        run_session(&gp);
+        end_session(&gp);
+        next_session(&gp);
 
-        // On commence direct par la session SESS_P1
-        // Lancer la session
-        run_session(&gpw);
-        // Fin => points
-        end_session(&gpw);
-
-        // Prochaine session
-        next_session(&gpw);
-
-        if(gpw.currentSession==SESS_FINISHED){
-            // Si c'était un mini-GP d'une seule session => improbable
-            printf("GP '%s' terminé en 1 session ???\n", gpw.gpName);
-            save_final_classification(&gpw, "final_result.txt");
+        if(gp.currentSession==SESS_FINISHED){
+            // Si tout s'est fini en 1 session... bizarre
+            printf("GP '%s' terminé en 1 session ?\n", gp.gpName);
+            save_final_classification(&gp, "final_result.txt");
             remove_state();
         } else {
-            // On sauvegarde l’état
-            save_state(&gpw);
-            printf("Session initiale terminée. Prochaine session = %d\n", gpw.currentSession);
+            save_state(&gp);
+            printf("Session initiale terminée. Prochaine session=%d\n", gp.currentSession);
         }
     }
 

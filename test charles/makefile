@@ -21,7 +21,7 @@ $(EXEC): $(OBJ)
 $(SRC)/main.o: $(SRC)/main.c $(INC)/utils.h $(INC)/csvutils.h $(INC)/race.h $(INC)/state.h
 	$(CC) $(CFLAGS) -I$(INC) -c $< -o $@
 
-$(SRC)/car.o: $(SRC)/car.c $(INC)/car.h $(INC)/utils.h
+$(SRC)/car.o: $(SRC)/car.c $(INC)/car.h
 	$(CC) $(CFLAGS) -I$(INC) -c $< -o $@
 
 $(SRC)/circuit.o: $(SRC)/circuit.c $(INC)/circuit.h

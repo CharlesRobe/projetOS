@@ -1,5 +1,4 @@
 #include "utils.h"
-#include <stdio.h>
 
 void error_exit(const char *msg)
 {
@@ -7,7 +6,6 @@ void error_exit(const char *msg)
     _exit(1);
 }
 
-// On fait un petit tableau ASCII
 void print_ascii_table_header(const char *title)
 {
     printf("  +---------------------------------------------------------+\n");

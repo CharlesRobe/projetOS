@@ -5,7 +5,6 @@
 
 #define STATE_FILE "gp_state.dat"
 
-// On enregistre la struct GPState telle quelle (binaire)
 int load_state(GPState *gp)
 {
     FILE *f = fopen(STATE_FILE, "rb");

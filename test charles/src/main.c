@@ -8,19 +8,18 @@
 
 int main(int argc, char *argv[])
 {
-    // On charge le CSV
+    // Charger CSV
     Circuit circuits[MAX_CIRCUITS];
     int nbC = load_circuits_from_csv("circuits.csv", circuits, MAX_CIRCUITS);
     if(nbC<1){
-        printf("Erreur: impossible de charger circuits.csv\n");
+        printf("Impossible de charger circuits.csv\n");
         return 1;
     }
 
     GPState gp;
-    memset(&gp,0,sizeof(gp));
 
     if(argc==1){
-        // Reprendre
+        // reprise
         if(load_state(&gp)<0){
             printf("Aucune session en cours (gp_state.dat introuvable)\n");
             return 0;
@@ -32,10 +31,10 @@ int main(int argc, char *argv[])
 
         // Lancer la session
         run_session(&gp);
-        // Fin => points
+        // fin => points
         end_session(&gp);
 
-        // Next
+        // next
         next_session(&gp);
 
         if(gp.currentSession==SESS_FINISHED){
@@ -46,24 +45,25 @@ int main(int argc, char *argv[])
             save_state(&gp);
             printf("Session terminée => Prochaine session: %d\n", gp.currentSession);
         }
-
-    } else {
-        // arguments => nouveau GP
-        // ./f1_sim <NomGP> [special]
+    }
+    else {
+        // nouveau GP
+        // usage: ./f1_sim <circuitNumber> [special]
+        int cNum = atoi(argv[1]);
         int isSprint=0;
         if(argc>=3 && strcmp(argv[2],"special")==0){
             isSprint=1;
         }
-        init_new_gp(&gp, argv[1], isSprint, circuits, nbC);
+        init_new_gp(&gp, cNum, isSprint, circuits, nbC);
 
-        // Lance la première session
+        // Lancer la 1ère session (Essai1)
         run_session(&gp);
         end_session(&gp);
         next_session(&gp);
 
         if(gp.currentSession==SESS_FINISHED){
-            // Si tout s'est fini en 1 session... bizarre
-            printf("GP '%s' terminé en 1 session ?\n", gp.gpName);
+            // tout fait en 1 session ??? improbable
+            printf("GP '%s' terminé!\n", gp.gpName);
             save_final_classification(&gp, "final_result.txt");
             remove_state();
         } else {

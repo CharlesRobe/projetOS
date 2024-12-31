@@ -1,69 +1,47 @@
-#include "utils.h"
-#include "csvutils.h"
-#include "race.h"
-#include "state.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
+#include <sys/wait.h>
+#include <unistd.h>
 
-int main(int argc, char *argv[])
+#include "f1shared.h"
+#include "car.h"
+#include "race.h"
+#include "rwcourtois.h"
+#include "utils.h"
+
+// Nouveau main.c pour le projet F1 + Courtois lecteurs/écrivains.
+// Pas de référence à GPState ou SESS_FINISHED ici : on utilise F1Shared et les fonctions du "race" actuel.
+
+int main(void)
 {
-    // Charger CSV
-    Circuit circuits[MAX_CIRCUITS];
-    int nbC= load_circuits_from_csv("circuits.csv", circuits, MAX_CIRCUITS);
-    if(nbC<1){
-        printf("Erreur: impossible de charger circuits.csv\n");
-        return 1;
-    }
+    // 1) Initialiser l'algorithme de Courtois (lecteurs/écrivains)
+    rw_init();
 
-    GPState gp;
+    // 2) Créer la mémoire partagée (F1Shared)
+    int shmid = create_shm();
+    F1Shared *f1 = attach_shm(shmid);
 
-    if(argc==1){
-        // reprise
-        if(load_state(&gp)<0){
-            printf("Aucune session en cours (gp_state.dat introuvable)\n");
-            return 0;
-        }
-        if(gp.currentSession==SESS_FINISHED){
-            printf("Le GP '%s' est déjà terminé.\n", gp.gpName);
-            return 0;
-        }
+    // 3) Charger la longueur d'un circuit (ex: circuit #1) depuis circuits.csv
+    //    pour la course de 300 km
+    load_circuit_length("circuits.csv", 1, f1);
 
-        run_session(&gp);
-        end_session(&gp);
-        next_session(&gp);
+    // 4) Lancer la séance d'essais (1h)
+    run_essai_1h(f1);
 
-        if(gp.currentSession==SESS_FINISHED){
-            printf("GP '%s' terminé!\n", gp.gpName);
-            save_final_classification(&gp, "final_result.txt");
-            remove_state();
-        } else {
-            save_state(&gp);
-            printf("Session terminée => Prochaine session: %d\n",(int)gp.currentSession);
-        }
-    }
-    else {
-        // ./f1_sim <numeroCircuit> [special]
-        int cNum= atoi(argv[1]);
-        int isSprint=0;
-        if(argc>=3 && strcmp(argv[2],"special")==0){
-            isSprint=1;
-        }
-        init_new_gp(&gp, cNum, isSprint, circuits, nbC);
+    // 5) Qualifications : Q1, Q2, Q3
+    run_qualifQ1(f1);
+    run_qualifQ2(f1);
+    run_qualifQ3(f1);
 
-        run_session(&gp);
-        end_session(&gp);
-        next_session(&gp);
+    // 6) Course de 300 km (calcul du nb de tours en fonction de la longueur)
+    run_course(f1);
 
-        if(gp.currentSession==SESS_FINISHED){
-            printf("GP '%s' terminé en 1 session ???\n", gp.gpName);
-            save_final_classification(&gp,"final_result.txt");
-            remove_state();
-        } else {
-            save_state(&gp);
-            printf("Session initiale terminée. Prochaine session=%d\n",(int)gp.currentSession);
-        }
-    }
+    // 7) Détacher et supprimer la mémoire partagée
+    detach_shm(f1);
+    remove_shm(shmid);
+
+    // 8) Nettoyer l'algo lecteurs/écrivains
+    rw_cleanup();
 
     return 0;
 }

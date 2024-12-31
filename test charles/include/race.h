@@ -4,55 +4,53 @@
 #include "car.h"
 #include "circuit.h"
 
+// Les différentes sessions
 typedef enum {
-    STAGE_NONE = 0,
-    STAGE_P1,
-    STAGE_P2,
-    STAGE_P3,
-    STAGE_Q1,
-    STAGE_Q2,
-    STAGE_Q3,
-    STAGE_SPRINT,
-    STAGE_RACE
-} Stage;
+    SESS_NONE = 0,
+    SESS_P1,
+    SESS_P2,
+    SESS_P3,
+    SESS_Q1,
+    SESS_Q2,
+    SESS_Q3,
+    SESS_SPRINT,
+    SESS_RACE,
+    SESS_FINISHED
+} SessionType;
 
-// Informations sur un Grand Prix donné
+// Structure globale pour un seul GP
 typedef struct {
-    Circuit circuit;   // Infos sur le circuit
-    int     isSpecial; // 0 = normal, 1 = sprint
-    int     nbToursCourse; // Nombre de tours (dimanche)
-    int     nbToursSprint; // Nombre de tours (samedi sprint)
-} GrandPrix;
+    Circuit   circuit;       // Infos circuit
+    char      gpName[64];    // Nom (ex: "Bahrain2025")
+    int       isSprint;      // 0=classique, 1=sprint
+    SessionType currentSession;
+    Car       cars[MAX_CARS];
+} GrandPrixWeekend;
 
-typedef struct {
-    Car cars[MAX_CARS];
+// Initialise un nouveau GP
+// Cherche si gpName existe dans circuits[], sinon prend circuit[0]
+void init_new_gp(GrandPrixWeekend *gpw,
+                 const char *gpName,
+                 int isSprint,
+                 Circuit circuits[],
+                 int nbC);
 
-    // Infos sur la session en cours
-    Stage currentStage;
+// Lance la session courante => fork 20 voitures, etc.
+void run_session(GrandPrixWeekend *gpw);
 
-    // Nombre total de GP
-    int   nbGP;
-    // Index du GP en cours (0..nbGP-1)
-    int   currentGP;
-    GrandPrix gpList[MAX_CIRCUITS]; // On stocke jusqu’à 30 GP max
+// Passe à la session suivante
+void next_session(GrandPrixWeekend *gpw);
 
-    // Classement général (points cumulés, etc.)
-    // -> On peut juste stocker dans Car.points
-} Championship;
+// Affecte les points (sprint, course)
+void end_session(GrandPrixWeekend *gpw);
 
-// Fonctions principales
-void init_championship(Championship *champ, Circuit circuits[], int nbCircuits);
-void run_current_session(Championship *champ);
+// Affiche un "beau tableau" en ASCII
+void display_classification(const GrandPrixWeekend *gpw, const char *title);
 
-// Pour enchaîner les étapes d’un GP
-void next_stage(Championship *champ);
-void start_stage(Championship *champ, Stage stage);
-void end_stage(Championship *champ, Stage stage);
+// Tri local par bestLap
+void sort_cars_by_bestlap(GrandPrixWeekend *gpw);
 
-// Affichage & classement
-void display_classification(const Championship *champ);
-void update_classification(Championship *champ);
-void save_results_session(const Championship *champ, const char *filename);
-void save_championship(const Championship *champ, const char *filename);
+// Sauvegarde le classement final du week-end (quand SESS_FINISHED) dans un fichier
+void save_final_classification(const GrandPrixWeekend *gpw, const char *filename);
 
 #endif /* RACE_H */

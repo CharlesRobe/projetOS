@@ -3,8 +3,6 @@
 
 #include "circuit.h"
 
-// Lit le fichier CSV "circuits.csv" et stocke le résultat dans circuits[].
-// Renvoie le nombre de circuits lus (22 dans votre cas), ou -1 en cas d’erreur.
-int load_circuits_from_csv(const char *filename, Circuit circuits[], int maxCircuits);
+int load_circuits_from_csv(const char *filename, Circuit circuits[], int maxCirc);
 
 #endif /* CSVUTILS_H */

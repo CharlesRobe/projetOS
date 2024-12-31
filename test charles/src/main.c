@@ -1,87 +1,91 @@
 #include "utils.h"
 #include "csvutils.h"
 #include "race.h"
+#include "state.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
-// On va boucler sur tous les GPs (22) : P1->P2->P3->Q1->Q2->Q3->(SPRINT)->RACE
-// puis passer au GP suivant.
+// Usage :
+//  - ./f1_sim            => reprendre la session en cours
+//  - ./f1_sim NomCourse  => nouveau GP (classique)
+//  - ./f1_sim NomCourse special => nouveau GP (sprint)
 
-int main(void)
+int main(int argc, char *argv[])
 {
-    // 1) Charger la liste des circuits depuis circuits.csv
+    // Charger la liste des circuits
     Circuit circuits[MAX_CIRCUITS];
     int nbC = load_circuits_from_csv("circuits.csv", circuits, MAX_CIRCUITS);
-    if (nbC <= 0) {
-        printf("Erreur: impossible de charger circuits.csv\n");
+    if(nbC<1){
+        printf("Impossible de charger circuits.csv\n");
         return 1;
     }
-    printf("Chargé %d circuits depuis circuits.csv\n", nbC);
 
-    // 2) Initialiser le championnat
-    Championship champ;
-    init_championship(&champ, circuits, nbC);
+    GrandPrixWeekend gpw;
+    memset(&gpw, 0, sizeof(gpw));
 
-    // 3) Pour chaque GP, on fait la séquence (P1->P2->P3->Q1->Q2->Q3->(SPRINT)->RACE)
-    for (int gpIndex = 0; gpIndex < champ.nbGP; gpIndex++) {
-        champ.currentGP = gpIndex;
-        printf("\n\n=== Grand Prix #%d : %s (%s) ===\n",
-               gpIndex+1,
-               champ.gpList[gpIndex].circuit.nom,
-               champ.gpList[gpIndex].circuit.pays);
-
-        // On remet STAGE_NONE avant de démarrer
-        champ.currentStage = STAGE_NONE;
-
-        // Séquence
-        next_stage(&champ); // P1
-        run_current_session(&champ);
-        end_stage(&champ, champ.currentStage);
-
-        next_stage(&champ); // P2
-        run_current_session(&champ);
-        end_stage(&champ, champ.currentStage);
-
-        next_stage(&champ); // P3
-        run_current_session(&champ);
-        end_stage(&champ, champ.currentStage);
-
-        next_stage(&champ); // Q1
-        run_current_session(&champ);
-        end_stage(&champ, champ.currentStage);
-
-        next_stage(&champ); // Q2
-        run_current_session(&champ);
-        end_stage(&champ, champ.currentStage);
-
-        next_stage(&champ); // Q3
-        run_current_session(&champ);
-        end_stage(&champ, champ.currentStage);
-
-        // Sprint ou Race
-        if (champ.gpList[gpIndex].isSpecial == 1) {
-            // SPRINT
-            next_stage(&champ); // SPRINT
-            run_current_session(&champ);
-            end_stage(&champ, champ.currentStage);
-
-            // RACE
-            next_stage(&champ);
-            run_current_session(&champ);
-            end_stage(&champ, champ.currentStage);
-        } else {
-            // Direct Race
-            next_stage(&champ); // RACE
-            run_current_session(&champ);
-            end_stage(&champ, champ.currentStage);
+    if(argc==1){
+        // Reprendre
+        if(load_state(&gpw)<0){
+            printf("Aucune session en cours (gp_state.dat introuvable)\n");
+            return 0;
         }
 
-        printf("=== Fin du GP #%d ===\n", gpIndex+1);
+        if(gpw.currentSession==SESS_FINISHED){
+            printf("Le GP '%s' est déjà terminé.\n", gpw.gpName);
+            return 0;
+        }
+
+        // Lancer la session courante
+        run_session(&gpw);
+        // Fin => points, etc.
+        end_session(&gpw);
+
+        // Passer à la session suivante
+        next_session(&gpw);
+
+        if(gpw.currentSession==SESS_FINISHED){
+            // On sauvegarde le classement final
+            printf("GP '%s' terminé !\n", gpw.gpName);
+            save_final_classification(&gpw, "final_result.txt");
+            remove_state();
+            printf("Classement final écrit dans 'final_result.txt'.\n");
+        } else {
+            // Sauvegarder l’état
+            save_state(&gpw);
+            printf("Session terminée. Prochaine session: %d.\n", gpw.currentSession);
+        }
+    }
+    else {
+        // On a au moins 1 argument => on démarre un nouveau GP
+        // ex: ./f1_sim "Bahrain" special
+        int isSprint = 0;
+        if(argc>=3 && strcmp(argv[2], "special")==0){
+            isSprint=1;
+        }
+
+        init_new_gp(&gpw, argv[1], isSprint, circuits, nbC);
+
+        // On commence direct par la session SESS_P1
+        // Lancer la session
+        run_session(&gpw);
+        // Fin => points
+        end_session(&gpw);
+
+        // Prochaine session
+        next_session(&gpw);
+
+        if(gpw.currentSession==SESS_FINISHED){
+            // Si c'était un mini-GP d'une seule session => improbable
+            printf("GP '%s' terminé en 1 session ???\n", gpw.gpName);
+            save_final_classification(&gpw, "final_result.txt");
+            remove_state();
+        } else {
+            // On sauvegarde l’état
+            save_state(&gpw);
+            printf("Session initiale terminée. Prochaine session = %d\n", gpw.currentSession);
+        }
     }
 
-    // 4) Saison terminée => on sauvegarde le classement final
-    save_championship(&champ, "championship_final.csv");
-
-    printf("\n>>> Saison terminée ! Classement final dans 'championship_final.csv'.\n");
     return 0;
 }

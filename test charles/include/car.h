@@ -11,24 +11,30 @@ typedef enum {
     CAR_OUT
 } CarStatus;
 
+/*
+  Structure d'une voiture (processus).
+  - bestLap : meilleur temps au tour
+  - bestS1, bestS2, bestS3
+  - points
+*/
 typedef struct {
     pid_t pid;
-    int   carNumber;    // 1, 11, 44, ...
+    int   carNumber;
     CarStatus status;
 
-    // Meilleur tour (cumul s1+s2+s3)
+    // Meilleur tour (somme s1+s2+s3)
     double bestLap;
 
-    // Meilleurs S1, S2, S3
+    // Meilleurs secteurs
     double bestS1;
     double bestS2;
     double bestS3;
 
-    // Points totaux
+    // Points cumulés
     int    points;
 } Car;
 
-// L'enfant reçoit "indexCar" et un "writeFd" pour envoyer s1,s2,s3
+// L'enfant : "indexCar", "writeFd" => envoie s1,s2,s3, ...
 void run_car_process(int indexCar, int writeFd);
 
 #endif /* CAR_H */

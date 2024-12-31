@@ -12,7 +12,6 @@
 
 void error_exit(const char *msg);
 
-// Petit affichage ASCII
 void print_ascii_table_header(const char *title);
 void print_ascii_table_row(int pos, int carNum, double bestLap, int points);
 void print_ascii_table_footer();

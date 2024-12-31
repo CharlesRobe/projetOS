@@ -5,7 +5,7 @@
 #include "circuit.h"
 
 typedef enum {
-    SESS_NONE = 0,
+    SESS_NONE=0,
     SESS_ESSAI1,
     SESS_ESSAI2,
     SESS_ESSAI3,
@@ -18,33 +18,41 @@ typedef enum {
 } SessionType;
 
 typedef struct {
-    Circuit      circuit;
-    char         gpName[64];
-    int          isSprint;       // 0=classique, 1=special
-    SessionType  currentSession;
-    Car          cars[MAX_CARS];
+    Circuit     circuit;
+    char        gpName[64];
+    int         isSprint;       // 0=classique, 1=special
+    SessionType currentSession;
+
+    // 20 voitures
+    Car         cars[MAX_CARS];
+
+    // Liste des "voitures éliminées" après Q1, Q2, etc.
+    // ex. elimQ1[5], elimQ2[5], pour la grille
+    int         elimQ1[5];
+    int         elimQ2[5];
+
+    // Nombre de tours prévus pour la sprint/course
+    int         nbToursSprint;
+    int         nbToursCourse;
 } GPState;
 
-// Initialise un nouveau GP en donnant le numéro du circuit, plus "isSprint"
-void init_new_gp(GPState *gp,
-                 int circuitNumber,
-                 int isSprint,
-                 Circuit circuits[],
-                 int nbCirc);
+// Initialise un GP (on donne un "numero de circuit" + isSprint)
+void init_new_gp(GPState *gp, int circuitNumber, int isSprint,
+                 Circuit circuits[], int nbCirc);
 
 // Lance la session courante
 void run_session(GPState *gp);
 
-// Avance la session
+// Passe à la session suivante
 void next_session(GPState *gp);
 
-// Fin de session -> attribuer points, etc.
+// Fin de session => points + gestion éliminations Q1/Q2
 void end_session(GPState *gp);
 
-// Trie par bestLap
+// Tri par bestLap
 void sort_cars_by_bestlap(GPState *gp);
 
-// Affiche un tableau live ou final
+// Affichage (live ou final)
 void display_classification(const GPState *gp, const char *title, int liveMode);
 
 // Sauvegarde finale

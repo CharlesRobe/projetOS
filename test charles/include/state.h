@@ -3,6 +3,7 @@
 
 #include "race.h"
 
+// Sauvegarde/reprise
 int load_state(GPState *gp);
 void save_state(const GPState *gp);
 void remove_state();

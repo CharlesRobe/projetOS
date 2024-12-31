@@ -1,5 +1,4 @@
 #include "state.h"
-#include "utils.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -9,7 +8,7 @@ int load_state(GPState *gp)
 {
     FILE *f = fopen(STATE_FILE, "rb");
     if(!f) return -1;
-    size_t sz = fread(gp, sizeof(GPState), 1, f);
+    size_t sz= fread(gp, sizeof(GPState),1,f);
     fclose(f);
     if(sz<1) return -1;
     return 0;
@@ -17,12 +16,9 @@ int load_state(GPState *gp)
 
 void save_state(const GPState *gp)
 {
-    FILE *f = fopen(STATE_FILE, "wb");
-    if(!f){
-        perror("fopen");
-        return;
-    }
-    fwrite(gp, sizeof(GPState), 1, f);
+    FILE *f= fopen(STATE_FILE,"wb");
+    if(!f) return;
+    fwrite(gp,sizeof(GPState),1,f);
     fclose(f);
 }
 

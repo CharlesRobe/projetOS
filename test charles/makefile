@@ -2,7 +2,6 @@ CC = gcc
 CFLAGS = -Wall -Wextra -g
 SRC = src
 INC = include
-
 OBJ = $(SRC)/main.o \
       $(SRC)/car.o \
       $(SRC)/circuit.o \

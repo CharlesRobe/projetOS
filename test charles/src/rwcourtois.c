@@ -10,15 +10,21 @@ int mutlect=-1;
 static void semP(int sid)
 {
     struct sembuf op;
-    op.sem_num=0; op.sem_op=-1; op.sem_flg=0;
+    op.sem_num=0; 
+    op.sem_op=-1; 
+    op.sem_flg=0;
     if(semop(sid,&op,1)<0) error_exit("semop P");
 }
+
 static void semV(int sid)
 {
     struct sembuf op;
-    op.sem_num=0; op.sem_op=1; op.sem_flg=0;
+    op.sem_num=0; 
+    op.sem_op=1; 
+    op.sem_flg=0;
     if(semop(sid,&op,1)<0) error_exit("semop V");
 }
+
 static int create_sem(key_t k, int initVal)
 {
     int sid= semget(k,1,0666|IPC_CREAT);
@@ -44,6 +50,7 @@ void rw_init()
     mutlect= create_sem(k2,1);
     nblect=0;
 }
+
 void rw_cleanup()
 {
     semctl(mutex,0,IPC_RMID,0);
@@ -59,6 +66,7 @@ void lire_debut()
     }
     semV(mutlect);
 }
+
 void lire_fin()
 {
     semP(mutlect);
@@ -68,10 +76,12 @@ void lire_fin()
     }
     semV(mutlect);
 }
+
 void ecrire_debut()
 {
     semP(mutex);
 }
+
 void ecrire_fin()
 {
     semV(mutex);

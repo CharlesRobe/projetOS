@@ -1,46 +1,54 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/wait.h>
-#include <unistd.h>
+#include <string.h>
 
 #include "f1shared.h"
-#include "car.h"
 #include "race.h"
 #include "rwcourtois.h"
 #include "utils.h"
 
-// Nouveau main.c pour le projet F1 + Courtois lecteurs/écrivains.
-// Pas de référence à GPState ou SESS_FINISHED ici : on utilise F1Shared et les fonctions du "race" actuel.
+// Prototypes
+void load_circuit_length(const char *filename, int circuitNum, F1Shared *f1);
 
-int main(void)
+int main(int argc, char *argv[])
 {
-    // 1) Initialiser l'algorithme de Courtois (lecteurs/écrivains)
+    // Vérifier les arguments
+    if(argc < 2){
+        printf("Usage: %s <NomGP>\n", argv[0]);
+        return 1;
+    }
+
+    // Nom du GP
+    char gpName[128];
+    strncpy(gpName, argv[1], sizeof(gpName)-1);
+    gpName[sizeof(gpName)-1] = '\0';
+
+    // Initialiser les sémaphores (Courtois)
     rw_init();
 
-    // 2) Créer la mémoire partagée (F1Shared)
+    // Créer et attacher la mémoire partagée
     int shmid = create_shm();
     F1Shared *f1 = attach_shm(shmid);
 
-    // 3) Charger la longueur d'un circuit (ex: circuit #1) depuis circuits.csv
-    //    pour la course de 300 km
+    // Charger la longueur du circuit (ex: circuit #1)
     load_circuit_length("circuits.csv", 1, f1);
 
-    // 4) Lancer la séance d'essais (1h)
+    // Lancer les Essais Libres 1h
     run_essai_1h(f1);
 
-    // 5) Qualifications : Q1, Q2, Q3
+    // Lancer les Qualifications Q1, Q2, Q3
     run_qualifQ1(f1);
     run_qualifQ2(f1);
     run_qualifQ3(f1);
 
-    // 6) Course de 300 km (calcul du nb de tours en fonction de la longueur)
+    // Lancer la Course de 300 km
     run_course(f1);
 
-    // 7) Détacher et supprimer la mémoire partagée
+    // Détacher et supprimer la mémoire partagée
     detach_shm(f1);
     remove_shm(shmid);
 
-    // 8) Nettoyer l'algo lecteurs/écrivains
+    // Nettoyer les sémaphores
     rw_cleanup();
 
     return 0;

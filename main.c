@@ -1,8 +1,10 @@
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
+
 
 #define FICHIER_CIRCUITS "circuits_inities.txt"
 
@@ -35,7 +37,7 @@ int main(int argc, char *argv[]) {
 
     if (etape_actuelle < 3) {
         printf("essis n°%d sur %s ",etape_actuelle+1,circuit);
-        essais();
+        essais(etape_actuelle);
         sauvegarder_etat(circuit, etape_actuelle+1);
     }
     else if (etape_actuelle < 5){
@@ -89,7 +91,7 @@ const char *dernier_circuit() {
     static char dernier[64];
     int fichier = open(FICHIER_CIRCUITS, O_RDONLY);
     if (fichier == -1) {
-        perror("Fichier introuvable ")
+        perror("Fichier introuvable ");
         return NULL; 
     }
     

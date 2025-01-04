@@ -1,5 +1,6 @@
 Comment compiler le fichier source pour ensuite l'exécuter ?
 
-1. Aller dans le directory où se trouve le fichier : ```$ cd /chemin/vers/le/fichier_code_source.c```
-2. Compiler le fichier source : ```$ gcc <fichier_code_source.c> -o <nom_exécutable_produit>```
-3. Exécuter le fichier produit par la compilation : ```$ ./nom_exécutable_produit```
+Un fichier Bash a été créé pour faciliter le processus de compilation et surtout éviter les éventuelles erreurs de commande qui pourraient supprimer des fichiers.
+La façon la plus simple de l'exécuter est via cette commande :
+```$ bash /chemin/vers/compiler.sh```
+(Rappel: Le drag and drop dans le terminal fonctionne).

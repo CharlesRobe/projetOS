@@ -12,6 +12,22 @@
 int main(int argc, char *argv[]) {
     const char *circuit = NULL;
 
+    // Exemple de fonctions (vides pour l'instant)
+    void essais(int etape) {
+        printf("Essais %d en cours...\n", etape);
+        // Logique des essais
+    }
+
+    void qualifications() {
+        printf("Qualifications en cours...\n");
+        // Logique des qualifications
+    }
+
+    void course() {
+        printf("Course en cours...\n");
+        // Logique de la course
+    }
+
     if (argc < 2) {   // si on a pas dde param on prend le dernier circuit
         circuit = dernier_circuit();
         if (!circuit) {
@@ -46,20 +62,4 @@ int main(int argc, char *argv[]) {
     else if (etape_actuelle==7){
         printf("le week end de %s est fini veuillez lancer un autre circuit",circuit);
     }
-
-// Exemple de fonctions (vides pour l'instant)
-void essais(int etape) {
-    printf("Essais %d en cours...\n", etape);
-    // Logique des essais
-}
-
-void qualifications() {
-    printf("Qualifications en cours...\n");
-    // Logique des qualifications
-}
-
-void course() {
-    printf("Course en cours...\n");
-    // Logique de la course
-}
 }

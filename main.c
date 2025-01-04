@@ -122,7 +122,7 @@ int charger_etat(const char *circuit) {
     int fichier = open(nomFichier, O_RDONLY);
     int etape;
     if (fichier != -1) {
-        if (read(fd, &etape, sizeof(etape)) != sizeof(etape)) {
+        if (read(fichier, &etape, sizeof(etape)) != sizeof(etape)) {
             etape = 0; 
         }
         close(fichier);

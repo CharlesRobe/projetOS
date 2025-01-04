@@ -1,5 +1,5 @@
 #include <fcntl.h>
-#include "functions.h"
+#include "main_functions.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

@@ -28,7 +28,7 @@ int main(int argc, char *argv[]) {
         // Logique de la course
     }
 
-    if (argc < 2) {   // si on a pas dde param on prend le dernier circuit
+    if (argc < 2) {   // Si aucun paramètre n'est spécifié, le dernier circuit est pris dans le fichier 'circuits_inities.txt'
         circuit = dernier_circuit();
         if (!circuit) {
             printf("Aucun circuit \n");
@@ -44,7 +44,7 @@ int main(int argc, char *argv[]) {
     int etape_actuelle = charger_etat(circuit);
 
     if (etape_actuelle < 3) {
-        printf("essis n°%d sur %s ",etape_actuelle+1,circuit);
+        printf("essais n°%d sur %s ",etape_actuelle+1,circuit);
         essais(etape_actuelle);
         sauvegarder_etat(circuit, etape_actuelle+1);
     }

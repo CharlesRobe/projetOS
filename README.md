@@ -11,4 +11,4 @@ Ensuite, pour exécuter le programme une fois qu'un exécutable a été créé, 
 
 ```$ ./Formula1_OS {nom_de_circuit}```
 
-Où 'nom_de_circuit' est un paramètre optionnel spécifiant le nom du circuit sur lequel l'entièreté du championnat se déroulera.
+Où 'nom_de_circuit' est un paramètre optionnel (sauf la première fois où on exécute le programme !!) spécifiant le nom du circuit sur lequel l'entièreté du championnat se déroulera.

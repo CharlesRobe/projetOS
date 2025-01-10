@@ -1,0 +1,193 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <errno.h>
+#include <unistd.h>
+
+#define MAX_LINE_LENGTH 256
+#define CIRCUIT_CSV "circuits.csv"
+
+// Prototypes
+int circuit_exists_in_csv(const char *circuit_name, double *circuit_length);
+int create_circuit_folder(const char *circuit_name, double circuit_length);
+int update_etat_file(const char *circuit_name, double circuit_length);
+void process_etat_file(const char *circuit_name);
+
+int main(int argc, char *argv[])
+{
+    if (argc < 2) {
+        fprintf(stderr, "Usage: %s <NomCircuit>\n", argv[0]);
+        return EXIT_FAILURE;
+    }
+
+    const char *circuit_name = argv[1];
+    struct stat st;
+
+    // Vérifier si un dossier portant le nom du circuit existe déjà
+    if (stat(circuit_name, &st) == 0 && S_ISDIR(st.st_mode)) {
+        printf("Le dossier pour le circuit '%s' existe déjà.\n", circuit_name);
+
+        // Traiter le fichier 'etat' et lancer les étapes correspondantes
+        process_etat_file(circuit_name);
+    } else {
+        // Si le dossier n'existe pas, chercher dans le CSV
+        double circuit_length = 0.0;
+        if (!circuit_exists_in_csv(circuit_name, &circuit_length)) {
+            fprintf(stderr, "Erreur : Le circuit '%s' n'est pas présent dans '%s'.\n", circuit_name, CIRCUIT_CSV);
+            return EXIT_FAILURE;
+        }
+
+        // Créer le dossier pour le circuit et le fichier taillecircuit
+        if (create_circuit_folder(circuit_name, circuit_length) != 0) {
+            fprintf(stderr, "Erreur lors de la création du dossier pour le circuit '%s'.\n", circuit_name);
+            return EXIT_FAILURE;
+        }
+
+        // Mettre à jour le fichier 'etat' et lancer les essais
+        if (update_etat_file(circuit_name, circuit_length) != 0) {
+            fprintf(stderr, "Erreur lors de la mise à jour du fichier 'etat'.\n");
+            return EXIT_FAILURE;
+        }
+
+        // Lancer les essais directement après la création
+        printf("Lancement des essais pour le circuit '%s'.\n", circuit_name);
+    }
+
+    return EXIT_SUCCESS;
+}
+
+/* ---------------------------------------------------------------------------
+ * Fonction pour traiter le fichier 'etat' et lancer les étapes correspondantes
+ * --------------------------------------------------------------------------- */
+void process_etat_file(const char *circuit_name)
+{
+    FILE *file = fopen("etat", "r+");
+    if (!file) {
+        perror("Erreur lors de l'ouverture du fichier 'etat'");
+        return;
+    }
+
+    char current_circuit[128] = "";
+    double circuit_length = 0.0;
+
+    // Lire le contenu du fichier 'etat'
+    if (fscanf(file, "%127s %lf", current_circuit, &circuit_length) != 2) {
+        printf("Aucune course en cours. Lancement des essais pour le circuit '%s'.\n", circuit_name);
+        fprintf(file, "%s %.3f\n", circuit_name, 0.0); // Écrire un état initial
+        fclose(file);
+        return;
+    }
+
+    // Vérifier si le circuit correspond au fichier 'etat'
+    if (strcmp(current_circuit, circuit_name) != 0) {
+        fprintf(stderr, "Erreur : Une autre course est en cours sur le circuit '%s'.\n", current_circuit);
+        fclose(file);
+        return;
+    }
+
+    // Traiter l'état du circuit
+    if (circuit_length < 3.0) {
+        printf("Lancement des essais pour le circuit '%s'.\n", circuit_name);
+        circuit_length = 3.0; // Passer à l'état suivant
+    } else if (circuit_length >= 3.0 && circuit_length < 5.0) {
+        printf("Lancement des qualifications pour le circuit '%s'.\n", circuit_name);
+        circuit_length = 5.0; // Passer à l'état suivant
+    } else {
+        printf("Lancement de la course finale pour le circuit '%s'.\n", circuit_name);
+        circuit_length = 0.0; // Réinitialiser pour indiquer qu'aucune course n'est en cours
+    }
+
+    // Réécrire le fichier 'etat'
+    rewind(file);
+    if (circuit_length > 0.0) {
+        fprintf(file, "%s %.3f\n", circuit_name, circuit_length);
+    } else {
+        ftruncate(fileno(file), 0); // Vider le fichier
+    }
+
+    fclose(file);
+}
+
+/* ---------------------------------------------------------------------------
+ * Fonction pour vérifier si le circuit existe dans le CSV
+ * --------------------------------------------------------------------------- */
+int circuit_exists_in_csv(const char *circuit_name, double *circuit_length)
+{
+    FILE *file = fopen(CIRCUIT_CSV, "r");
+    if (!file) {
+        perror("Erreur lors de l'ouverture du fichier CSV");
+        return 0;
+    }
+
+    char line[MAX_LINE_LENGTH];
+    while (fgets(line, sizeof(line), file)) {
+        char circuit_csv_name[128];
+        double length;
+        if (sscanf(line, "%*d,%lf,%*[^,],%127[^\n]", &length, circuit_csv_name) == 2) {
+            if (strcmp(circuit_csv_name, circuit_name) == 0) {
+                *circuit_length = length;
+                fclose(file);
+                return 1;
+            }
+        }
+    }
+
+    fclose(file);
+    return 0;
+}
+
+/* ---------------------------------------------------------------------------
+ * Fonction pour créer le dossier du circuit et le fichier taillecircuit
+ * --------------------------------------------------------------------------- */
+int create_circuit_folder(const char *circuit_name, double circuit_length)
+{
+    if (mkdir(circuit_name, 0755) != 0) {
+        perror("Erreur lors de la création du dossier");
+        return -1;
+    }
+
+    char taillecircuit_path[256];
+    snprintf(taillecircuit_path, sizeof(taillecircuit_path), "%s/taillecircuit", circuit_name);
+
+    FILE *file = fopen(taillecircuit_path, "w");
+    if (!file) {
+        perror("Erreur lors de la création du fichier taillecircuit");
+        return -1;
+    }
+    fprintf(file, "%.3f\n", circuit_length);
+    fclose(file);
+
+    return 0;
+}
+
+/* ---------------------------------------------------------------------------
+ * Fonction pour mettre à jour le fichier 'etat'
+ * --------------------------------------------------------------------------- */
+int update_etat_file(const char *circuit_name, double circuit_length)
+{
+    FILE *file = fopen("etat", "r+");
+    if (!file) {
+        file = fopen("etat", "w");
+        if (!file) {
+            perror("Erreur lors de la création du fichier 'etat'");
+            return -1;
+        }
+    }
+
+    char current_circuit[128] = "";
+    if (fscanf(file, "%127s", current_circuit) == 1) {
+        if (strcmp(current_circuit, circuit_name) != 0) {
+            fprintf(stderr, "Erreur : Une course est déjà en cours sur le circuit '%s'.\n", current_circuit);
+            fclose(file);
+            return -1;
+        }
+    }
+
+    rewind(file);
+    fprintf(file, "%s %.3f\n", circuit_name, circuit_length);
+    fclose(file);
+
+    return 0;
+}

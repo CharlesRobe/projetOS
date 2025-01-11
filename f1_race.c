@@ -1,17 +1,3 @@
-/******************************************************************************
- * f1_race.c
- *
- * Simulation (simplifiée) de course de Formule 1 :
- *  - Processus fils (fork) pour chaque voiture,
- *  - Mémoire partagée (shmget, shmat, etc.),
- *  - Sémaphores (semget, semop, etc.),
- *  - Seed pseudo-aléatoire partagée pour obtenir des valeurs distinctes.
- *
- * Compilation : gcc -o f1_race f1_race.c -Wall -Wextra -pedantic
- * Exécution   : ./f1_race
- *
- ******************************************************************************/
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -23,6 +9,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
+#include <math.h>
 
 /* ---------------------------------------------------------------------------
  * Constantes et macros
@@ -267,7 +254,11 @@ void car_process(int index, SharedMemory *shm, int semid)
             }
 
             /* Temps aléatoire du secteur [25..45] secondes */
-            int sector_time = random_in_range(25, 45);
+            double sector_time = random_in_range(25000, 45000);
+            
+            sector_time=sector_time  / 1000;
+            
+            
 
             /* Dans le secteur 3 : 1 chance sur 5 d'aller aux stands */
             if (s == 2 && (rand() % 5) == 0) {
@@ -316,39 +307,101 @@ void car_process(int index, SharedMemory *shm, int semid)
         semaphore_signal(semid, SEM_MUTEX);
     }
 }
+// Fonction de comparaison (tri croissant par total_time)
+int compare_cars(const void *a, const void *b) {
+    CarData *carA = *(CarData **)a;
+    CarData *carB = *(CarData **)b;
+    if (carA->status != 2 && carB->status == 2)
+        return -1; // carA avant carB
+    if (carA->status == 2 && carB->status != 2)
+        return 1;  // carB avant car
+    if (carA->total_time < carB->total_time) 
+        return -1;
+    else if (carA->total_time > carB->total_time)
+        return 1;
+    else
+        return 0;
+}
+
+// Fonction pour convertir le temps en minutes, secondes et millisecondes
+void convert_time(double total_seconds, int *minutes, int *seconds, int *milliseconds) {
+    if (total_seconds < 0) {
+        *minutes = *seconds = *milliseconds = 0;
+        return;
+    }
+
+    *minutes = (int)(total_seconds / 60);
+    *seconds = (int)total_seconds % 60;
+    *milliseconds = (int)((total_seconds - (*minutes * 60) - *seconds) * 1000);
+}
 
 /* ---------------------------------------------------------------------------
  * Affichage d’un tour sous forme de tableau
  * --------------------------------------------------------------------------- */
 static void display_tour_table(SharedMemory *shm, int current_lap)
 {
-    printf("\n+-----------------------------------------------------------+\n");
-    printf("|                Affichage du Tour %-2d                       |\n", current_lap + 1);
-    printf("+--------+------------+----------+---------+----------------+\n");
-    printf("|  ID    |  Time (s)  |  Écart   | Secteur |    Statut      |\n");
-    printf("+--------+------------+----------+---------+----------------+\n");
+    // Créer un tableau de pointeurs vers toutes les voitures avec un temps valide
+    CarData *car_ptrs[MAX_CARS];
+    int actual_cars = 0;
 
     for (int c = 0; c < MAX_CARS; c++) {
-        CarData *tmpCar = &shm->cars[c];
+        if (shm->cars[c].total_time > 0.0) { // Inclure toutes les voitures avec un temps valide
+            car_ptrs[actual_cars++] = &shm->cars[c];
+        }
+    }
+
+    // Trier le tableau de pointeurs en fonction du total_time
+    qsort(car_ptrs, actual_cars, sizeof(CarData *), compare_cars);
+
+    // Identifier le leader (voiture avec le plus petit total_time)
+    CarData *leader = (actual_cars > 0) ? car_ptrs[0] : NULL;
+
+    // Afficher la table
+    printf("\n+-----------------------------------------------------------------------+\n");
+    printf("|                    Affichage du Tour %-2d                             |\n", current_lap + 1);
+    printf("+--------+-------------------+-------------------+---------+----------------+\n");
+    printf("|  ID    |  Time (m:s:ms)    |  Écart (m:s:ms)   | Secteur |    Statut      |\n");
+    printf("+--------+-------------------+-------------------+---------+----------------+\n");
+
+    for (int c = 0; c < actual_cars; c++) {
+        CarData *tmpCar = car_ptrs[c];
         double gap = 0.0;
-        if (tmpCar->status != 2) {  
-            /* On compare le temps total au temps de la voiture 0 (simpliste) */
-            gap = tmpCar->total_time - shm->cars[0].total_time;
+
+        if (leader != NULL && tmpCar != leader) {  
+            gap = tmpCar->total_time - leader->total_time;
         }
 
-        /* Détermination du statut en texte */
+        // Détermination du statut en texte
         const char *statut_txt = (tmpCar->status == 2) ? "Abandonnée" :
                                  (tmpCar->status == 1) ? "Aux stands"  :
                                                          "En course";
+        
+        // Conversion du temps total
+        int mintime, sectime, miletime;
+        convert_time(tmpCar->total_time, &mintime, &sectime, &miletime);
 
-        printf("| %6d | %10.2f | %8.2f |   %2d     | %-14s|\n",
-               tmpCar->car_id,
-               tmpCar->total_time,
-               gap,
+        // Conversion de l'écart
+        int gapmintime = 0, gapsectime = 0, gapmiletime = 0;
+        if (tmpCar != leader) {
+            convert_time(gap, &gapmintime, &gapsectime, &gapmiletime);
+        }
+
+        // Affichage du temps formaté
+        printf("| %6d | %2d:%02d:%03d      | ", 
+               tmpCar->car_id, mintime, sectime, miletime);
+
+        if (tmpCar == leader) {
+            printf("  0:00:000      |");
+        } else {
+            printf(" %2d:%02d:%03d      |", gapmintime, gapsectime, gapmiletime);
+        }
+
+        printf("   %2d    | %-14s |\n",
                tmpCar->current_sector,
                statut_txt);
     }
-    printf("+-----------------------------------------------------------+\n");
+
+    printf("+--------+-------------------+-------------------+---------+----------------+\n");
 }
 
 /* ---------------------------------------------------------------------------
@@ -428,7 +481,7 @@ void free_dynamic_arrays(SharedMemory *shm)
 }
 
 /* ---------------------------------------------------------------------------
- * Écriture simplifiée des résultats finaux
+ * Écriture des résultats finaux
  * --------------------------------------------------------------------------- */
 void write_results_to_file(const char *circuit_name, SharedMemory *shm)
 {
@@ -444,7 +497,6 @@ void write_results_to_file(const char *circuit_name, SharedMemory *shm)
 
     fprintf(f, "--- Résultats de la Course pour le circuit '%s' ---\n", circuit_name);
     fprintf(f, "-----------------------------------------------\n");
-    // Exemple d’écriture
     for (int i = 0; i < MAX_CARS; i++) {
         fprintf(f, "Voiture %d - Temps total: %.2f s - Statut: %d\n",
                 shm->cars[i].car_id,

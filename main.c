@@ -56,7 +56,7 @@ int main(int argc, char *argv[])
     }
 
     // 5) Indiquer qu'on lance la toute première étape (état=1 => Essais)
-    printf("Lancement de la phase d'essais n°1.\n",
+    printf("Debut %s. Lancement de la phase d'essais n°1.\n",
            circuit_name);
 
     return 0;
@@ -112,7 +112,7 @@ void handle_no_argument(void)
         // Course
         printf("Lancement de la Course pour le circuit '%s'.\n", current_circuit);
         f1_race_run(current_circuit);
-        if (remove("etat") == 0) {
+        if (remove("etat") == 0) {  
           printf("Le fichier 'etat' a été supprimé avec succès.\n");
           } else {
               perror("Erreur lors de la suppression du fichier 'etat'");
@@ -130,7 +130,7 @@ void handle_no_argument(void)
 
     fclose(f);
 
-    printf("Nouvel état du circuit '%s': %d\n", current_circuit, state);
+  
 }
 
 /* ---------------------------------------------------------------------------

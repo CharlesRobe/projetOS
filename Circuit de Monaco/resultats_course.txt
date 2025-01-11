@@ -1,2 +1,0 @@
---- Résultats de la Course (simplifié) ---
-(À vous d'implémenter le classement, les points, etc.)

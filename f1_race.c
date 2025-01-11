@@ -374,7 +374,8 @@ void read_initial_data(SharedMemory *shm, const char *circuit_name) {
     fclose(file);
 
     // Calcul du nombre de tours pour ~300 km
-    shm->total_laps = (int)(300.0 / shm->circuit_length + 0.5);
+    printf("circuit_length %f",shm->circuit_length);
+    shm->total_laps = (int)(300000 / shm->circuit_length + 0.5);
 
     printf("Longueur du circuit : %.3f km\n", shm->circuit_length);
     printf("Nombre de tours : %d\n", shm->total_laps);
@@ -383,9 +384,10 @@ void read_initial_data(SharedMemory *shm, const char *circuit_name) {
     char qualif_file_path[256];
     snprintf(qualif_file_path, sizeof(qualif_file_path),
              "%s/qualifies.txt", circuit_name);
-
+    
     // Lire la liste des voitures qualifiées
-    file = fopen(qualif_file_path, "r");
+    //file = fopen(qualif_file_path, "r");  TODO changer après quand les qualifs creent un fichier avec les qualifiés
+    file = fopen("qualifies.txt","r");
     if (!file) {
         perror("Erreur lors de l'ouverture de qualifies.txt");
         exit(EXIT_FAILURE);

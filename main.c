@@ -31,7 +31,7 @@ int main(int argc, char *argv[])
     // 1) Vérifier si un dossier portant le nom du circuit existe déjà
     struct stat st;
     if (stat(circuit_name, &st) == 0 && S_ISDIR(st.st_mode)) {
-        fprintf(stderr, "Erreur : Le dossier '%s' existe déjà.\n", circuit_name);
+        fprintf(stderr, "Erreur : Le dossier '%s' existe déjà. Veuillez continuez celui en cours avec ./projet ou en relancer un autre.\n", circuit_name);
         return 1;
     }
 
@@ -56,7 +56,7 @@ int main(int argc, char *argv[])
     }
 
     // 5) Indiquer qu'on lance la toute première étape (état=1 => Essais)
-    printf("Création du circuit '%s' . Lancement de la phase d'essais.\n",
+    printf("Lancement de la phase d'essais n°1.\n",
            circuit_name);
 
     return 0;

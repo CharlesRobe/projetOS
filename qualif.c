@@ -184,7 +184,7 @@ int qualif(const char* nomCircuit, int numSession, int weType) {
         // Q3
         runQualificationSession(3, durationSession, NUM_CARS - 10, carNumbers3, results3);
 
-        // *** AJOUT : construction d'un tableau final pour l'affichage ***
+        // Construction d'un tableau final pour l'affichage 
         CarResult finalGrid[NUM_CARS];
         int index = 0;
 
@@ -203,7 +203,7 @@ int qualif(const char* nomCircuit, int numSession, int weType) {
             finalGrid[index++] = results1[NUM_CARS - 5 + i];
         }
 
-        // *** AJOUT : Affichage en forme de tableau dans la console ***
+        // *** Affichage en forme de tableau dans la console ***
         printf("\n");
         printf("*********************************************\n");
         printf("*             QUALIFICATIONS                *\n");
@@ -223,7 +223,39 @@ int qualif(const char* nomCircuit, int numSession, int weType) {
         }
         printf("---------------------------------------------------------------\n\n");
 
-        // *** Écriture dans le fichier qualifies.txt (inchangé) ***
+        // Écriture du classement dans un fichier "ranking.txt" dans le dossier nomCircuit fourni en paramètre
+        // On construit le chemin vers "ranking.txt"
+        char rankingFilePath[1024];
+        snprintf(rankingFilePath, sizeof(rankingFilePath), "%s/ranking.txt", nomCircuit);
+
+        FILE *fpRanking = fopen(rankingFilePath, "w");
+        if (!fpRanking) {
+            perror("Erreur lors de la création de ranking.txt");
+            exit(EXIT_FAILURE);
+        }
+
+        // On écrit le même tableau que celui affiché en console
+        fprintf(fpRanking, "*********************************************\n");
+        fprintf(fpRanking, "*             QUALIFICATIONS                *\n");
+        fprintf(fpRanking, "*********************************************\n");
+        fprintf(fpRanking, "| %-3s | %-5s | %-9s | %-9s | %-9s | %-9s |\n",
+                "Pos", "Car#", "Sect1", "Sect2", "Sect3", "Total");
+        fprintf(fpRanking, "|-----|-------|-----------|-----------|-----------|-----------|\n");
+
+        for (int i = 0; i < NUM_CARS; i++) {
+            fprintf(fpRanking, "| %-3d | %-5d | %-9.3f | %-9.3f | %-9.3f | %-9.3f |\n",
+                    i + 1,
+                    finalGrid[i].carNumber,
+                    finalGrid[i].bestTimeSec1,
+                    finalGrid[i].bestTimeSec2,
+                    finalGrid[i].bestTimeSec3,
+                    finalGrid[i].bestTimeTot);
+        }
+        fprintf(fpRanking, "---------------------------------------------------------------\n\n");
+
+        fclose(fpRanking);
+
+        // Écriture dans le fichier qualifies.txt
         FILE *fp = fopen("qualifies.txt", "w");
         if (!fp) {
             perror("Erreur lors de l'ouverture du fichier qualifies.txt");

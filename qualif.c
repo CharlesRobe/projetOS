@@ -21,21 +21,24 @@ typedef struct {
 } CarResult;
 
 int carNumbers1[NUM_CARS] = {1, 11, 44, 63, 16, 55, 4, 81, 14, 18, 10, 31, 23, 2, 22, 3, 77, 24, 20, 27};
-int carNumbers2[NUM_CARS - 5]; // Tableau pour Q2.
-int carNumbers3[NUM_CARS - 10]; // Tableau pour Q3.
+int carNumbers2[NUM_CARS - 5];    // Tableau pour Q2.
+int carNumbers3[NUM_CARS - 10];   // Tableau pour Q3.
 
-CarResult results1[NUM_CARS]; // Résultats de Q1.
-CarResult results2[NUM_CARS - 5]; // Résultats de Q2.
-CarResult results3[NUM_CARS - 10]; // Résultats de Q3.
+CarResult results1[NUM_CARS];       // Résultats de Q1.
+CarResult results2[NUM_CARS - 5];   // Résultats de Q2.
+CarResult results3[NUM_CARS - 10];  // Résultats de Q3.
 
-
-// Génère un nombre aléatoire représentant un temps compris entre secMin et secMax secondes.
+/**
+ * Génère un nombre aléatoire représentant un temps compris entre secMin et secMax secondes.
+ */
 float GenRanNum(int seedIncrementer, int secMin, int secMax) {
     float randomTime = ((rand() % (((secMax - secMin) * 1000) + 1)) + (secMin * 1000)) / 1000.0;
     return randomTime;
 }
 
-// Simule la performance d'une voiture pendant la durée donnée.
+/**
+ * Simule la performance d'une voiture pendant la durée donnée.
+ */
 void simulateCar(int carNumber, int seed, int durationMinutes, int pipeFd) {
     float bestTimeSec1 = INFINITY; // Meilleur temps secteur 1 initialisé à l'infini.
     float bestTimeSec2 = INFINITY; // Meilleur temps secteur 2 initialisé à l'infini.
@@ -67,7 +70,9 @@ void simulateCar(int carNumber, int seed, int durationMinutes, int pipeFd) {
     exit(0); // Fin du processus enfant.
 }
 
-// Fonction de comparaison pour trier les résultats selon le meilleur temps total.
+/**
+ * Fonction de comparaison pour trier les résultats selon le meilleur temps total.
+ */
 int compareResults(const void *a, const void *b) {
     CarResult *carA = (CarResult *)a;
     CarResult *carB = (CarResult *)b;
@@ -76,7 +81,9 @@ int compareResults(const void *a, const void *b) {
     return 0;
 }
 
-// Lance une session de qualification.
+/**
+ * Lance une session de qualification.
+ */
 void runQualificationSession(int numSession, int durationMinutes, int numCars, int *carNumbers, CarResult *results) {
     printf("Starting Q%d\n", numSession); // Début de la session.
     int pipes[NUM_CARS][2]; // Tableau de pipes pour la communication interprocessus.
@@ -85,7 +92,7 @@ void runQualificationSession(int numSession, int durationMinutes, int numCars, i
     // Création des processus pour chaque voiture.
     for (int i = 0; i < numCars; i++) {
         if (pipe(pipes[i]) == -1) { // Création du pipe pour chaque voiture.
-            perror("pipe"); // Gestion d'erreur en cas d'échec.
+            perror("pipe");
             exit(EXIT_FAILURE);
         }
         pids[i] = fork(); // Création d'un processus enfant.
@@ -95,7 +102,7 @@ void runQualificationSession(int numSession, int durationMinutes, int numCars, i
             simulateCar(carNumbers[i], rand(), durationMinutes, pipes[i][1]); // Simulation de la voiture.
         } else if (pids[i] > 0) { // Code exécuté par le processus parent.
             close(pipes[i][1]); // Fermeture du côté écriture du pipe.
-        } else { // Gestion d'erreur en cas d'échec de `fork`.
+        } else {
             perror("erreur du fork");
             exit(EXIT_FAILURE);
         }
@@ -116,13 +123,17 @@ void runQualificationSession(int numSession, int durationMinutes, int numCars, i
     for (int i = 0; i < numCars; i++) {
         printf("Car %d: %.3f\n", results[i].carNumber, results[i].bestTimeTot);
     }
-    printf("End of Q%d\n", numSession); // Fin de la session.
+    printf("End of Q%d\n", numSession);
 }
 
+/**
+ * Fonction principale de qualification.
+ */
 int qualif(const char* nomCircuit, int numSession, int weType) {
+    
+    int durationSession = 0;
 
-    int durationSession
-
+    // Définition de la durée de session selon le type de week-end et le numéro de session
     if (weType == 0){
         switch (numSession) {
             case 1:
@@ -150,31 +161,30 @@ int qualif(const char* nomCircuit, int numSession, int weType) {
         }
     }
 
-    if (numSession == 1){
-    // Lancement des trois sessions de qualification.
+    // Lancement des sessions et récupération des résultats
+    if (numSession == 1) {
+        // Q1
         runQualificationSession(1, durationSession, NUM_CARS, carNumbers1, results1);
-    
-        // Préparation des voitures pour Q2 en prenant les 15 meilleures de Q1.
+
+        // Prépare les 15 meilleures voitures pour Q2
         for (int i = 0; i < NUM_CARS - 5; i++) {
             carNumbers2[i] = results1[i].carNumber;
         }
     }
+    else if (numSession == 2) {
+        // Q2
+        runQualificationSession(2, durationSession, NUM_CARS - 5, carNumbers2, results2);
 
-
-    else if (numSession == 2){
-        runQualificationSession(2, durationsSession, NUM_CARS - 5, carNumbers2, results2);
-
-        // Préparation des voitures pour Q3 en prenant les 10 meilleures de Q2.
+        // Prépare les 10 meilleures voitures pour Q3
         for (int i = 0; i < NUM_CARS - 10; i++) {
             carNumbers3[i] = results2[i].carNumber;
         }
     }
-
-
-    else if (numSession == 3){
+    else if (numSession == 3) {
+        // Q3
         runQualificationSession(3, durationSession, NUM_CARS - 10, carNumbers3, results3);
-    
-        // Affichage de la grille finale.
+
+        // Affichage de la grille finale (console)
         printf("Final Grid:\n");
         for (int i = 0; i < NUM_CARS - 10; i++) {
             printf("P%d: Car %d\n", i + 1, results3[i].carNumber);
@@ -185,6 +195,31 @@ int qualif(const char* nomCircuit, int numSession, int weType) {
         for (int i = 0; i < 5; i++) {
             printf("P%d: Car %d\n", NUM_CARS - 5 + i + 1, results1[NUM_CARS - 5 + i].carNumber);
         }
+
+        // Écriture dans le fichier qualifies.txt
+        FILE *fp = fopen("qualifies.txt", "w");
+        if (!fp) {
+            perror("Erreur lors de l'ouverture du fichier qualifies.txt");
+            exit(EXIT_FAILURE);
+        }
+
+        // Les 10 premiers (issus de Q3)
+        for (int i = 0; i < NUM_CARS - 10; i++) {
+            fprintf(fp, "%d\n", results3[i].carNumber);
+        }
+
+        // Les 5 suivants (issus de Q2)
+        for (int i = 0; i < 5; i++) {
+            fprintf(fp, "%d\n", results2[NUM_CARS - 10 + i].carNumber);
+        }
+
+        // Les 5 derniers (issus de Q1)
+        for (int i = 0; i < 5; i++) {
+            fprintf(fp, "%d\n", results1[NUM_CARS - 5 + i].carNumber);
+        }
+
+        fclose(fp);
     }
-    return 0; // Fin du programme.
+
+    return 0;
 }

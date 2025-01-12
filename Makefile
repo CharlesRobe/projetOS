@@ -1,7 +1,7 @@
 # Variables
 CC = gcc
 CFLAGS = -Wall -Wextra -pedantic
-SRC = main.c f1_race.c
+SRC = main.c f1_race.c qualif.c
 OBJ = $(SRC:.c=.o)
 EXEC = projet
 

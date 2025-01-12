@@ -111,7 +111,7 @@ void runQualificationSession(const char *sessionName, int durationMinutes, int n
 }
 
 int main() {
-    int carNumbers1[NUM_CARS] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20};
+    int carNumbers1[NUM_CARS] = {1, 11, 44, 63, 16, 55, 4, 81, 14, 18, 10, 31, 23, 2, 22, 3, 77, 24, 20, 27};
     int carNumbers2[NUM_CARS - 5]; // Tableau pour Q2.
     int carNumbers3[NUM_CARS - 10]; // Tableau pour Q3.
 

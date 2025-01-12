@@ -9,6 +9,6 @@ La façon la plus simple de l'exécuter est via cette commande :
 
 Ensuite, pour exécuter le programme une fois qu'un exécutable a été créé, il suffit d'utiliser la commande :
 
-```$ ./Formula1_OS {nom_de_circuit}```
+```$ ./Projet_F1 {nom_de_circuit}```
 
 Où 'nom_de_circuit' est un paramètre optionnel (sauf la première fois où on exécute le programme !!) spécifiant le nom du circuit sur lequel l'entièreté du championnat se déroulera.

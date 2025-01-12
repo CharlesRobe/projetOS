@@ -14,7 +14,7 @@
 /* ---------------------------------------------------------------------------
  * Constantes et macros
  * --------------------------------------------------------------------------- */
-#define MAX_CARS         10    /* Nombre de voitures qualifiées */
+#define MAX_CARS         20    /* Nombre de voitures qualifiées */
 #define SECTORS_PER_LAP  3     /* Nombre de secteurs par tour */
 #define PITSTOP_TIME_MIN 20    /* Ajout minimal lors d'un passage aux stands */
 #define PITSTOP_TIME_MAX 30    /* Ajout maximal lors d'un passage aux stands */
@@ -90,7 +90,7 @@ union semun {
 /* ---------------------------------------------------------------------------
  * Prototypes de fonctions
  * --------------------------------------------------------------------------- */
-void read_initial_data(SharedMemory *shm,const char *circuit_name);
+void read_initial_data(SharedMemory *shm,const char *circuit_name,int special);
 void allocate_dynamic_arrays(SharedMemory *shm);
 void free_dynamic_arrays(SharedMemory *shm);
 void write_results_to_file(const char *circuit_name, SharedMemory *shm);
@@ -105,7 +105,7 @@ static void display_tour_table(SharedMemory *shm, int current_lap);  /* Pour l'a
 /* ---------------------------------------------------------------------------
  * Fonction principale
  * --------------------------------------------------------------------------- */
-int f1_race_run(const char *circuit_name)
+int f1_race_run(const char *circuit_name,int special)
 {
     /* 1) Création de la clé pour la mémoire partagée et le(s) sémaphore(s) */
     key_t key = ftok(".", 'R');
@@ -134,7 +134,7 @@ int f1_race_run(const char *circuit_name)
     shm_ptr->race_finished      = 0;  
 
     /* Lecture des données (longueur circuit, nb tours, voitures qualifiées...) */
-    read_initial_data(shm_ptr,circuit_name);
+    read_initial_data(shm_ptr,circuit_name,special);
 
     /* Allocation dynamique pour l’historique des temps et leader_times */
     allocate_dynamic_arrays(shm_ptr);
@@ -440,7 +440,7 @@ static void display_tour_table(SharedMemory *shm, int current_lap)
 /* ---------------------------------------------------------------------------
  * Lecture des données (circuit, voitures qualifiées) - Simplifiée
  * --------------------------------------------------------------------------- */
-void read_initial_data(SharedMemory *shm, const char *circuit_name) {
+void read_initial_data(SharedMemory *shm, const char *circuit_name,int special) {
     // Construire le chemin vers taillecircuit.txt
     char taille_file_path[256];
     snprintf(taille_file_path, sizeof(taille_file_path),
@@ -461,7 +461,10 @@ void read_initial_data(SharedMemory *shm, const char *circuit_name) {
 
     // Calcul du nombre de tours pour ~300 km
     printf("circuit_length %f",shm->circuit_length);
-    shm->total_laps = (int)(300000 / shm->circuit_length + 0.5);
+    int km=100000;
+    if (!special){km=300000;}
+    
+    shm->total_laps = (int)(km / shm->circuit_length + 0.5);
 
     printf("Longueur du circuit : %.3f km\n", shm->circuit_length);
     printf("Nombre de tours : %d\n", shm->total_laps);

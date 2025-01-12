@@ -5,6 +5,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include "f1_race.h"
+#include "qualif.h"
 #define CSV_FILENAME "circuits.csv"
 #define ETAT_FILENAME "etat"
 #define MAX_LINE 256
@@ -15,7 +16,7 @@
 int circuit_exists_in_csv(const char *circuit_name, int *circuit_length);
 void handle_no_argument(void);
 int create_circuit_folder(const char *circuit_name, int circuit_length);
-int update_etat_on_creation(const char *circuit_name, int circuit_state);
+int update_etat_on_creation(const char *circuit_name, int circuit_state,int special);
 
 int main(int argc, char *argv[])
 {
@@ -24,6 +25,11 @@ int main(int argc, char *argv[])
         handle_no_argument();
         return 0;
     }
+    int special = 0;
+    if (argc == 3 && atoi(argv[2]) == 1){
+      special = 1;
+      printf("Weekend Special \n"); }
+    else {printf("Weekend normal \n");}
 
     // CAS 2 : AVEC ARGUMENT => "./projet <NomCircuit>"
     const char *circuit_name = argv[1];
@@ -50,7 +56,7 @@ int main(int argc, char *argv[])
     }
 
     // 4) Mettre à jour "etat" pour signaler qu'on a commencé ce circuit à l'état 1
-    if (update_etat_on_creation(circuit_name, 1) != 0) {
+    if (update_etat_on_creation(circuit_name, 1,special) != 0) {
         fprintf(stderr, "Erreur lors de la mise à jour de '%s'.\n", ETAT_FILENAME);
         return 1;
     }
@@ -80,6 +86,7 @@ void handle_no_argument(void)
 
     char current_circuit[128] = "";
     int state = 0;
+    int special = 0;
 
     // Lire la première ligne (nom du circuit)
     if (!fgets(current_circuit, sizeof(current_circuit), f)) {
@@ -95,23 +102,47 @@ void handle_no_argument(void)
     if (fscanf(f, "%d", &state) != 1) {
         fprintf(stderr, "Erreur : L'état du circuit est manquant ou mal formé dans '%s'.\n", ETAT_FILENAME);
         fclose(f);
-        return;
-    }
+        return;}
+        
+    // Lire la troisième ligne 
+    if (fscanf(f, "%d", &special) != 1) {
+        fprintf(stderr, "Erreur : L'info sur le special est manquant ou mal formé dans '%s'.\n", ETAT_FILENAME);
+        fclose(f);
+        return;}
 
     // Afficher le circuit en cours et l'état
-    printf("Circuit en cours : %s | État actuel : %d\n", current_circuit, state);
-
+    
+    printf("Circuit en cours : %s | État actuel : %d |", current_circuit, state);
+    if (special) {printf( "Weekend special \n");}
+    else  {printf( "Weekend normal \n");}
+    
     // Selon la valeur de state, on lance la phase correspondante
-    if (state < 3) {
+    if ((special && state==0) || (!special && state < 3) ) {
         // Essais
         printf("Lancement des Essais n° %d pour le circuit '%s'.\n",state+1, current_circuit);
-    } else if (state < 6) {
+    } else if ((special && state<4) || (special && state >4 && state<8) ||  (!special && state < 6) ) {
         // Qualifications
-        printf("Lancement des Qualifications n° %d pour le circuit '%s'.\n", state-2,current_circuit);
-    } else if (state == 6)  {
+        
+        if ((special && state<4)) {
+             printf("Lancement des Qualifications sprint n° %d pour le circuit '%s'.\n", state,current_circuit);
+             qualif(current_circuit,state,1);}
+        else {
+            if (special){state -=2;}
+            printf("Lancement des Qualifications n° %d pour le circuit '%s'.\n", state-2,current_circuit);
+            qualif(current_circuit,state-2,0);
+            if (special) {state +=2;}
+            }
+            
+      
+      
+    } else if ( special && state==4){
+        printf("Lancement du sprint pour le circuit '%s'.\n", current_circuit);
+        f1_race_run(current_circuit,special); 
+    
+    }else if ((special && state==8) || (!special && state==6))  {
         // Course
         printf("Lancement de la Course pour le circuit '%s'.\n", current_circuit);
-        f1_race_run(current_circuit);
+        f1_race_run(current_circuit,0);
         if (remove("etat") == 0) {  
           printf("Le fichier 'etat' a été supprimé avec succès.\n");
           } else {
@@ -126,7 +157,7 @@ void handle_no_argument(void)
 
     // Réécrire dans etat
     rewind(f);
-    fprintf(f, "%s\n%d\n", current_circuit, state);
+    fprintf(f, "%s\n%d\n%d\n", current_circuit, state,special);
 
     fclose(f);
 
@@ -200,7 +231,7 @@ int create_circuit_folder(const char *circuit_name, int circuit_length)
  * Mettre à jour le fichier "etat" pour signaler qu'un nouveau circuit
  * débute à l'état demandé (par ex. 1).
  * --------------------------------------------------------------------------- */
-int update_etat_on_creation(const char *circuit_name, int circuit_state)
+int update_etat_on_creation(const char *circuit_name, int circuit_state, int special)
 {
     FILE *f = fopen(ETAT_FILENAME, "w");
     if (!f) {
@@ -209,7 +240,7 @@ int update_etat_on_creation(const char *circuit_name, int circuit_state)
     }
 
     // Écrire le nom du circuit (ligne 1) et l'état initial (ligne 2)
-    fprintf(f, "%s\n%d\n", circuit_name, circuit_state);
+    fprintf(f, "%s\n%d\n%d\n", circuit_name, circuit_state,special);
 
     fclose(f);
     return 0;

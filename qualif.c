@@ -119,20 +119,49 @@ int qualif(const char* nomCircuit, int numSession, int weType) {
     CarResult results2[NUM_CARS - 5]; // Résultats de Q2.
     CarResult results3[NUM_CARS - 10]; // Résultats de Q3.
 
+    int durationSession
+
+    if (weType == 0){
+        switch (numSession) {
+            case 1:
+                durationSession = 18;
+                break;
+            case 2:
+                durationSession = 15;
+                break;
+            case 3:
+                durationSession = 12;
+                break;
+        }
+    }
+    else if (weType == 1){
+        switch (numSession) {
+            case 1:
+                durationSession = 12;
+                break;
+            case 2:
+                durationSession = 10;
+                break;
+            case 3:
+                durationSession = 8;
+                break;
+        }
+    }
+
     // Lancement des trois sessions de qualification.
-    runQualificationSession("Q1", 18, NUM_CARS, carNumbers1, results1);
+    runQualificationSession("Q1", durationSession, NUM_CARS, carNumbers1, results1);
 
     // Préparation des voitures pour Q2 en prenant les 15 meilleures de Q1.
     for (int i = 0; i < NUM_CARS - 5; i++) {
         carNumbers2[i] = results1[i].carNumber;
     }
-    runQualificationSession("Q2", 15, NUM_CARS - 5, carNumbers2, results2);
+    runQualificationSession("Q2", durationsSession, NUM_CARS - 5, carNumbers2, results2);
 
     // Préparation des voitures pour Q3 en prenant les 10 meilleures de Q2.
     for (int i = 0; i < NUM_CARS - 10; i++) {
         carNumbers3[i] = results2[i].carNumber;
     }
-    runQualificationSession("Q3", 12, NUM_CARS - 10, carNumbers3, results3);
+    runQualificationSession("Q3", durationSession, NUM_CARS - 10, carNumbers3, results3);
 
     // Affichage de la grille finale.
     printf("Final Grid:\n");

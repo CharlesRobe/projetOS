@@ -51,11 +51,14 @@ const char* get_circuit_name_from_etat() {
 
 /* Informations sur une voiture */
 typedef struct {
-    int car_id;         /* Identifiant unique de la voiture */
-    int current_lap;    /* Numéro du tour en cours */
+    int car_id;       
+    int current_lap;   
     int current_sector; /* Secteur en cours (1, 2, ou 3) */
     double total_time;  /* Temps total depuis le début de la course */
     int status;         /* 0 = en course, 1 = aux stands, 2 = abandonnée */
+    double timeS1;
+    double timeS2;
+    double timeS3;
 
     /* Historique des temps : [lap][sector], en secondes */
     double **history;   
@@ -67,6 +70,9 @@ typedef struct {
     double **leader_times;        /* Temps de passage du leader [lap][sector] */
     int last_displayed_lap;       /* Dernier tour affiché */
     int race_finished;            /* Indicateur de fin de course */
+    
+    double bestlap;
+    int bestlapcar;
 
     int total_laps;               /* Nombre total de tours (env. 300 km) */
     double circuit_length;        /* Longueur du circuit (en km) */
@@ -244,6 +250,7 @@ void car_process(int index, SharedMemory *shm, int semid)
 
     while (car->current_lap < total_laps) {
         /* Parcours des 3 secteurs du tour */
+        double lap=0;
         for (int s = 0; s < SECTORS_PER_LAP; s++) {
             /* Abandon aléatoire (1/1000) */
             if ((rand() % 1000) == 0) {
@@ -252,16 +259,20 @@ void car_process(int index, SharedMemory *shm, int semid)
                 semaphore_signal(semid, SEM_MUTEX);
                 return;
             }
+            
 
             /* Temps aléatoire du secteur [25..45] secondes */
             double sector_time = random_in_range(25000, 45000);
             
             sector_time=sector_time  / 1000;
             
+          
+            
+            
             
 
             /* Dans le secteur 3 : 1 chance sur 5 d'aller aux stands */
-            if (s == 2 && (rand() % 5) == 0) {
+            if (s == 2 && (rand() % 15) == 0) {
                 semaphore_wait(semid, SEM_MUTEX);
                 car->status = 1;   /* Aux stands */
                 semaphore_signal(semid, SEM_MUTEX);
@@ -274,13 +285,25 @@ void car_process(int index, SharedMemory *shm, int semid)
                 car->status = 0;   /* Retour en course */
                 semaphore_signal(semid, SEM_MUTEX);
             }
-
+            semaphore_wait(semid, SEM_MUTEX);
+            if (s==0){  
+                car->timeS1=sector_time;
+                }
+            if (s==1){
+                car->timeS2=sector_time;
+                }
+            if (s==2){
+                car->timeS3=sector_time;
+                }
+            semaphore_signal(semid, SEM_MUTEX);
             /* Mise à jour de la mémoire partagée (section critique) */
             semaphore_wait(semid, SEM_MUTEX);
 
             car->current_sector = s + 1;
             car->history[car->current_lap][s] = (double) sector_time;
             car->total_time += (double) sector_time;
+            
+            lap += sector_time;
 
             /* Mise à jour du leader_times (si index=0 = "leader" forcé) */
             if (index == 0) {
@@ -292,10 +315,19 @@ void car_process(int index, SharedMemory *shm, int semid)
             /* Sleep artificiel (optionnel) pour simuler un délai */
             usleep(100000);  /* 0.1s */
         }
-
-        /* La voiture a terminé un tour */
         semaphore_wait(semid, SEM_MUTEX);
 
+        // Comparaison et mise à jour du meilleur temps de tour
+        if (shm->bestlap == 0 || lap < shm->bestlap) {
+            shm->bestlap = lap;
+            shm->bestlapcar = car->car_id;
+        }
+
+        // Libération du sémaphore après la section critique
+        semaphore_signal(semid, SEM_MUTEX);
+        /* La voiture a terminé un tour */
+        semaphore_wait(semid, SEM_MUTEX);
+  
         int current_lap = car->current_lap;
         /* Affichage global du tour si personne ne l'a déjà fait */
         if (shm->last_displayed_lap < current_lap) {
@@ -357,11 +389,11 @@ static void display_tour_table(SharedMemory *shm, int current_lap)
     CarData *leader = (actual_cars > 0) ? car_ptrs[0] : NULL;
 
     // Afficher la table
-    printf("\n+-----------------------------------------------------------------------+\n");
-    printf("|                    Affichage du Tour %-2d                             |\n", current_lap + 1);
-    printf("+--------+-------------------+-------------------+---------+----------------+\n");
-    printf("|  ID    |  Time (m:s:ms)    |  Écart (m:s:ms)   | Secteur |    Statut      |\n");
-    printf("+--------+-------------------+-------------------+---------+----------------+\n");
+    printf("+ -----------------------------------------------------------------------------------------------------------+\n");
+    printf("|                                         Affichage du Tour %-2d                                              |\n", current_lap + 1);
+    printf("+--------+----------------+-----------------+-----------+------------+-----------+---------+----------------+\n");
+    printf("|  ID    |  Time (m:s:ms) |  Écart (m:s:ms) |     S1    |      S2    |     S3    | Secteur |    Statut      |\n");
+    printf("+--------+----------------+-----------------+-----------+------------+-----------+---------+----------------+\n");
 
     for (int c = 0; c < actual_cars; c++) {
         CarData *tmpCar = car_ptrs[c];
@@ -373,7 +405,7 @@ static void display_tour_table(SharedMemory *shm, int current_lap)
 
         // Détermination du statut en texte
         const char *statut_txt = (tmpCar->status == 2) ? "Abandonnée" :
-                                 (tmpCar->status == 1) ? "Aux stands"  :
+                                 (tmpCar->timeS3 > 45) ? "PIT"  :
                                                          "En course";
         
         // Conversion du temps total
@@ -395,13 +427,14 @@ static void display_tour_table(SharedMemory *shm, int current_lap)
         } else {
             printf(" %2d:%02d:%03d      |", gapmintime, gapsectime, gapmiletime);
         }
-
+        printf("   %.3f  |   %.3f   |   %.3f  |",tmpCar->timeS1,tmpCar->timeS2,tmpCar->timeS3);
         printf("   %2d    | %-14s |\n",
                tmpCar->current_sector,
                statut_txt);
     }
 
-    printf("+--------+-------------------+-------------------+---------+----------------+\n");
+    printf("+--------+----------------+-----------------+-----------+------------+-----------+---------+----------------+\n");
+    printf("Le meilleur tour est de %.3f par la voiture %d \n",shm->bestlap,shm->bestlapcar);
 }
 
 /* ---------------------------------------------------------------------------

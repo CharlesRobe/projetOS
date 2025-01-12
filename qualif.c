@@ -68,8 +68,8 @@ int compareResults(const void *a, const void *b) {
 }
 
 // Lance une session de qualification.
-void runQualificationSession(const char *sessionName, int durationMinutes, int numCars, int *carNumbers, CarResult *results) {
-    printf("Starting %s\n", sessionName); // Début de la session.
+void runQualificationSession(int numSession, int durationMinutes, int numCars, int *carNumbers, CarResult *results) {
+    printf("Starting Q%d\n", numSession); // Début de la session.
     int pipes[NUM_CARS][2]; // Tableau de pipes pour la communication interprocessus.
     pid_t pids[NUM_CARS];   // Tableau pour stocker les PID des processus enfants.
 
@@ -103,11 +103,11 @@ void runQualificationSession(const char *sessionName, int durationMinutes, int n
     qsort(results, numCars, sizeof(CarResult), compareResults);
 
     // Affichage des résultats de la session.
-    printf("Results for %s:\n", sessionName);
+    printf("Results for Q%d:\n", numSession);
     for (int i = 0; i < numCars; i++) {
         printf("Car %d: %.3f\n", results[i].carNumber, results[i].bestTimeTot);
     }
-    printf("End of %s\n", sessionName); // Fin de la session.
+    printf("End of Q%d\n", numSession); // Fin de la session.
 }
 
 int qualif(const char* nomCircuit, int numSession, int weType) {
@@ -149,19 +149,19 @@ int qualif(const char* nomCircuit, int numSession, int weType) {
     }
 
     // Lancement des trois sessions de qualification.
-    runQualificationSession("Q1", durationSession, NUM_CARS, carNumbers1, results1);
+    runQualificationSession(1, durationSession, NUM_CARS, carNumbers1, results1);
 
     // Préparation des voitures pour Q2 en prenant les 15 meilleures de Q1.
     for (int i = 0; i < NUM_CARS - 5; i++) {
         carNumbers2[i] = results1[i].carNumber;
     }
-    runQualificationSession("Q2", durationsSession, NUM_CARS - 5, carNumbers2, results2);
+    runQualificationSession(2, durationsSession, NUM_CARS - 5, carNumbers2, results2);
 
     // Préparation des voitures pour Q3 en prenant les 10 meilleures de Q2.
     for (int i = 0; i < NUM_CARS - 10; i++) {
         carNumbers3[i] = results2[i].carNumber;
     }
-    runQualificationSession("Q3", durationSession, NUM_CARS - 10, carNumbers3, results3);
+    runQualificationSession(3, durationSession, NUM_CARS - 10, carNumbers3, results3);
 
     // Affichage de la grille finale.
     printf("Final Grid:\n");

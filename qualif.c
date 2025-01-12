@@ -20,6 +20,15 @@ typedef struct {
     float bestTimeTot;    // Meilleur temps total de la voiture.
 } CarResult;
 
+int carNumbers1[NUM_CARS] = {1, 11, 44, 63, 16, 55, 4, 81, 14, 18, 10, 31, 23, 2, 22, 3, 77, 24, 20, 27};
+int carNumbers2[NUM_CARS - 5]; // Tableau pour Q2.
+int carNumbers3[NUM_CARS - 10]; // Tableau pour Q3.
+
+CarResult results1[NUM_CARS]; // Résultats de Q1.
+CarResult results2[NUM_CARS - 5]; // Résultats de Q2.
+CarResult results3[NUM_CARS - 10]; // Résultats de Q3.
+
+
 // Génère un nombre aléatoire représentant un temps compris entre secMin et secMax secondes.
 float GenRanNum(int seedIncrementer, int secMin, int secMax) {
     float randomTime = ((rand() % (((secMax - secMin) * 1000) + 1)) + (secMin * 1000)) / 1000.0;
@@ -111,13 +120,6 @@ void runQualificationSession(int numSession, int durationMinutes, int numCars, i
 }
 
 int qualif(const char* nomCircuit, int numSession, int weType) {
-    int carNumbers1[NUM_CARS] = {1, 11, 44, 63, 16, 55, 4, 81, 14, 18, 10, 31, 23, 2, 22, 3, 77, 24, 20, 27};
-    int carNumbers2[NUM_CARS - 5]; // Tableau pour Q2.
-    int carNumbers3[NUM_CARS - 10]; // Tableau pour Q3.
-
-    CarResult results1[NUM_CARS]; // Résultats de Q1.
-    CarResult results2[NUM_CARS - 5]; // Résultats de Q2.
-    CarResult results3[NUM_CARS - 10]; // Résultats de Q3.
 
     int durationSession
 
@@ -148,32 +150,41 @@ int qualif(const char* nomCircuit, int numSession, int weType) {
         }
     }
 
+    if (numSession == 1){
     // Lancement des trois sessions de qualification.
-    runQualificationSession(1, durationSession, NUM_CARS, carNumbers1, results1);
-
-    // Préparation des voitures pour Q2 en prenant les 15 meilleures de Q1.
-    for (int i = 0; i < NUM_CARS - 5; i++) {
-        carNumbers2[i] = results1[i].carNumber;
-    }
-    runQualificationSession(2, durationsSession, NUM_CARS - 5, carNumbers2, results2);
-
-    // Préparation des voitures pour Q3 en prenant les 10 meilleures de Q2.
-    for (int i = 0; i < NUM_CARS - 10; i++) {
-        carNumbers3[i] = results2[i].carNumber;
-    }
-    runQualificationSession(3, durationSession, NUM_CARS - 10, carNumbers3, results3);
-
-    // Affichage de la grille finale.
-    printf("Final Grid:\n");
-    for (int i = 0; i < NUM_CARS - 10; i++) {
-        printf("P%d: Car %d\n", i + 1, results3[i].carNumber);
-    }
-    for (int i = 0; i < 5; i++) {
-        printf("P%d: Car %d\n", NUM_CARS - 10 + i + 1, results2[NUM_CARS - 10 + i].carNumber);
-    }
-    for (int i = 0; i < 5; i++) {
-        printf("P%d: Car %d\n", NUM_CARS - 5 + i + 1, results1[NUM_CARS - 5 + i].carNumber);
+        runQualificationSession(1, durationSession, NUM_CARS, carNumbers1, results1);
+    
+        // Préparation des voitures pour Q2 en prenant les 15 meilleures de Q1.
+        for (int i = 0; i < NUM_CARS - 5; i++) {
+            carNumbers2[i] = results1[i].carNumber;
+        }
     }
 
+
+    else if (numSession == 2){
+        runQualificationSession(2, durationsSession, NUM_CARS - 5, carNumbers2, results2);
+
+        // Préparation des voitures pour Q3 en prenant les 10 meilleures de Q2.
+        for (int i = 0; i < NUM_CARS - 10; i++) {
+            carNumbers3[i] = results2[i].carNumber;
+        }
+    }
+
+
+    else if (numSession == 3){
+        runQualificationSession(3, durationSession, NUM_CARS - 10, carNumbers3, results3);
+    
+        // Affichage de la grille finale.
+        printf("Final Grid:\n");
+        for (int i = 0; i < NUM_CARS - 10; i++) {
+            printf("P%d: Car %d\n", i + 1, results3[i].carNumber);
+        }
+        for (int i = 0; i < 5; i++) {
+            printf("P%d: Car %d\n", NUM_CARS - 10 + i + 1, results2[NUM_CARS - 10 + i].carNumber);
+        }
+        for (int i = 0; i < 5; i++) {
+            printf("P%d: Car %d\n", NUM_CARS - 5 + i + 1, results1[NUM_CARS - 5 + i].carNumber);
+        }
+    }
     return 0; // Fin du programme.
 }

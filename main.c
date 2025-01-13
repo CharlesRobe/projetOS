@@ -6,6 +6,7 @@
 #include <sys/types.h>
 #include "f1_race.h"
 #include "qualif.h"
+#include "essais.h"
 #define CSV_FILENAME "circuits.csv"
 #define ETAT_FILENAME "etat"
 #define MAX_LINE 256
@@ -64,6 +65,7 @@ int main(int argc, char *argv[])
     // 5) Indiquer qu'on lance la toute première étape (état=1 => Essais)
     printf("Debut %s. Lancement de la phase d'essais n°1.\n",
            circuit_name);
+    essais();
 
     return 0;
 }
@@ -119,7 +121,9 @@ void handle_no_argument(void)
     // Selon la valeur de state, on lance la phase correspondante
     if ((special && state==0) || (!special && state < 3) ) {
         // Essais
+
         printf("Lancement des Essais n° %d pour le circuit '%s'.\n",state+1, current_circuit);
+        essais();
     } else if ((special && state<4) || (special && state >4 && state<8) ||  (!special && state < 6) ) {
         // Qualifications
         

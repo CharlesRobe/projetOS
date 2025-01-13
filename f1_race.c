@@ -24,7 +24,7 @@
 
 #define ETAT_FILENAME "etat"
 #define TAILLE_FICHIER "taillecircuit.txt"
-#define QUALIFIED_FILE "qualifies.txt"
+#define QUALIFIED_FILE "qual.txt"
 
 /* ---------------------------------------------------------------------------
  * Structures pour la mémoire partagée
@@ -59,6 +59,10 @@ typedef struct {
     double timeS1;
     double timeS2;
     double timeS3;
+    double besttimeS1;
+    double besttimeS2;
+    double besttimeS3;
+    double bestlap;
 
     /* Historique des temps : [lap][sector], en secondes */
     double **history;   
@@ -93,7 +97,7 @@ union semun {
 void read_initial_data(SharedMemory *shm,const char *circuit_name,int special);
 void allocate_dynamic_arrays(SharedMemory *shm);
 void free_dynamic_arrays(SharedMemory *shm);
-void write_results_to_file(const char *circuit_name, SharedMemory *shm);
+void write_results_to_file(const char *circuit_name, SharedMemory *shm,int special);
 int  random_in_range(int min_val, int max_val);
 void init_semaphore(int semid, int semnum, int init_val);
 void semaphore_wait(int semid, int semnum);
@@ -149,6 +153,12 @@ int f1_race_run(const char *circuit_name,int special)
         shm_ptr->cars[i].current_sector = 0;
         shm_ptr->cars[i].total_time     = 0.0;
         shm_ptr->cars[i].status         = 0;  /* 0=en course */
+        shm_ptr->cars[i].besttimeS1 = 0;
+        shm_ptr->cars[i].besttimeS2 = 0;
+        shm_ptr->cars[i].besttimeS3 = 0;
+        shm_ptr->cars[i].bestlap = 0;
+        
+        
 
         /* Historique : allocation [total_laps][SECTORS_PER_LAP] */
         shm_ptr->cars[i].history = (double**) malloc(sizeof(double*) * shm_ptr->total_laps);
@@ -205,17 +215,9 @@ int f1_race_run(const char *circuit_name,int special)
     /* 8) Affichage et sauvegarde des résultats finaux */
     printf("\n----- Course terminée -----\n\n");
     /* Exemple d'affichage simple du résultat final */
-    for (int i = 0; i < MAX_CARS; i++) {
-        CarData *car = &shm_ptr->cars[i];
-        printf("Voiture %2d | Temps total: %6.2f s | Statut: %s\n",
-               car->car_id,
-               car->total_time,
-               (car->status == 2) ? "Abandonnée" :
-               (car->status == 1) ? "Aux stands"  : "Terminé/En course");
-    }
 
     /* Sauvegarde des résultats dans un fichier (simplifié) */
-    write_results_to_file(circuit_name,shm_ptr);
+    write_results_to_file(circuit_name,shm_ptr,special);
 
     /* 9) Nettoyage de la mémoire partagée et des sémaphores */
     if (shmdt(shm_ptr) == -1) {
@@ -288,12 +290,15 @@ void car_process(int index, SharedMemory *shm, int semid)
             semaphore_wait(semid, SEM_MUTEX);
             if (s==0){  
                 car->timeS1=sector_time;
+                if (car->besttimeS1 == 0 || sector_time < car->besttimeS1) {car->besttimeS1=sector_time;}
                 }
             if (s==1){
                 car->timeS2=sector_time;
+                if (car->besttimeS2 == 0 || sector_time < car->besttimeS2) {car->besttimeS2=sector_time;}
                 }
             if (s==2){
                 car->timeS3=sector_time;
+                if (car->besttimeS3 == 0 || sector_time < car->besttimeS3) {car->besttimeS3=sector_time;}
                 }
             semaphore_signal(semid, SEM_MUTEX);
             /* Mise à jour de la mémoire partagée (section critique) */
@@ -322,6 +327,7 @@ void car_process(int index, SharedMemory *shm, int semid)
             shm->bestlap = lap;
             shm->bestlapcar = car->car_id;
         }
+        if (!car->bestlap || car->bestlap > lap) {car->bestlap = lap;}
 
         // Libération du sémaphore après la section critique
         semaphore_signal(semid, SEM_MUTEX);
@@ -419,13 +425,13 @@ static void display_tour_table(SharedMemory *shm, int current_lap)
         }
 
         // Affichage du temps formaté
-        printf("| %6d | %2d:%02d:%03d      | ", 
+        printf("| %6d | %3d:%02d:%03d      | ", 
                tmpCar->car_id, mintime, sectime, miletime);
 
         if (tmpCar == leader) {
             printf("  0:00:000      |");
         } else {
-            printf(" %2d:%02d:%03d      |", gapmintime, gapsectime, gapmiletime);
+            printf(" -%2d:%02d:%03d      |", gapmintime, gapsectime, gapmiletime);
         }
         printf("   %.3f  |   %.3f   |   %.3f  |",tmpCar->timeS1,tmpCar->timeS2,tmpCar->timeS3);
         printf("   %2d    | %-14s |\n",
@@ -459,7 +465,7 @@ void read_initial_data(SharedMemory *shm, const char *circuit_name,int special) 
     }
     fclose(file);
 
-    // Calcul du nombre de tours pour ~300 km
+    
     printf("circuit_length %f",shm->circuit_length);
     int km=100000;
     if (!special){km=300000;}
@@ -472,13 +478,13 @@ void read_initial_data(SharedMemory *shm, const char *circuit_name,int special) 
     // Construire le chemin vers qualifies.txt
     char qualif_file_path[256];
     snprintf(qualif_file_path, sizeof(qualif_file_path),
-             "%s/qualifies.txt", circuit_name);
+             "%s/qual.txt", circuit_name);
     
     // Lire la liste des voitures qualifiées
     //file = fopen(qualif_file_path, "r");  TODO changer après quand les qualifs creent un fichier avec les qualifiés
-    file = fopen("qualifies.txt","r");
+    file = fopen("qual.txt","r");
     if (!file) {
-        perror("Erreur lors de l'ouverture de qualifies.txt");
+        perror("Erreur lors de l'ouverture de qual.txt");
         exit(EXIT_FAILURE);
     }
     for (int i = 0; i < MAX_CARS; i++) {
@@ -519,26 +525,65 @@ void free_dynamic_arrays(SharedMemory *shm)
 /* ---------------------------------------------------------------------------
  * Écriture des résultats finaux
  * --------------------------------------------------------------------------- */
-void write_results_to_file(const char *circuit_name, SharedMemory *shm)
+void write_results_to_file(const char *circuit_name, SharedMemory *shm, int special)
 {
     char classement_path[256];
+    
     snprintf(classement_path, sizeof(classement_path),
-             "%s/classement.txt", circuit_name);
+             "%s/classement%d.txt", circuit_name, special);
 
     FILE *f = fopen(classement_path, "w");
     if (!f) {
-        perror("Erreur lors de la création de classement.txt");
+        fprintf(stderr, "Erreur lors de la création de %s\n", classement_path);
         return;
     }
 
     fprintf(f, "--- Résultats de la Course pour le circuit '%s' ---\n", circuit_name);
-    fprintf(f, "-----------------------------------------------\n");
+    fprintf(f, "------------------------------------------------------\n");
+    fprintf(f, "| Rang | Voiture | Temps Total | Best S1 | Best S2 | Best S3 | Meilleur Tour | Statut       |\n");
+    fprintf(f, "-------------------------------------------------------------------------------------------------------\n");
+
+    // Création d'un tableau de pointeurs pour trier les voitures par temps total
+    CarData *sorted_cars[MAX_CARS];
     for (int i = 0; i < MAX_CARS; i++) {
-        fprintf(f, "Voiture %d - Temps total: %.2f s - Statut: %d\n",
-                shm->cars[i].car_id,
-                shm->cars[i].total_time,
-                shm->cars[i].status);
+        sorted_cars[i] = &shm->cars[i];
     }
+
+
+
+    // Tri des voitures
+    qsort(sorted_cars, MAX_CARS, sizeof(CarData *), compare_cars);
+
+    // Écriture des résultats triés
+    for (int i = 0; i < MAX_CARS; i++) {
+        CarData *car = sorted_cars[i];
+        if (car->total_time == 0.0 && car->status == 0) {
+            // Voiture non terminée et non abandonnée, on peut choisir de l'ignorer ou de l'afficher différemment
+            continue;
+        }
+
+        // Conversion du meilleur tour en minutes:secondes:millisecondes
+        
+        int minutes, secondes, millisecondes,min,sec,ms;
+        convert_time(car->bestlap, &minutes, &secondes, &millisecondes);
+        convert_time(car->total_time,&min,&sec,&ms);
+  
+        // Détermination du statut en texte
+        const char *statut_txt = (car->status == 2) ? "Abandonnée" :
+                                 (car->status == 1) ? "PIT"  : "Terminé";
+
+        fprintf(f, "| %4d | %7d | %3d:%02d:%03d  | %6.2f s | %6.2f s | %6.2f s | %2d:%02d:%03d  | %-12s |\n",
+                i + 1, // Rang
+                car->car_id,
+                min,sec,ms,
+                car->besttimeS1,
+                car->besttimeS2,
+                car->besttimeS3,
+                minutes, secondes, millisecondes,
+                statut_txt);
+    }
+
+    fprintf(f, "-------------------------------------------------------------------------------------------------------\n");
 
     fclose(f);
     printf("Résultats écrits dans %s\n", classement_path);
